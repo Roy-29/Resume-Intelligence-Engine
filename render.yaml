@@ -1,0 +1,27 @@
+databases:
+  - name: recruiter-pro-db
+    plan: free
+    databaseName: recruiterpro
+    user: recruiter_user
+
+services:
+  # The Web Service (Django ASGI/Channels via Daphne)
+  - type: web
+    name: recruiter-pro-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "daphne recruitment.asgi:application --port $PORT --bind 0.0.0.0"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: recruiter-pro-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: DEBUG
+        value: "False"
+      - key: AI_PROVIDER
+        value: "huggingface"
+      # IMPORTANT: Add your GEMINI_API_KEY and HUGGINGFACE_API_KEY in the Render dashboard manually!
