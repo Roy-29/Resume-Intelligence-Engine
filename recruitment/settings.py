@@ -20,6 +20,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't')
 ALLOWED_HOSTS = ['*']
 if 'RENDER_EXTERNAL_HOSTNAME' in os.environ:
     ALLOWED_HOSTS.append(os.environ['RENDER_EXTERNAL_HOSTNAME'])
+    CSRF_TRUSTED_ORIGINS = [f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}"]
 
 INSTALLED_APPS = [
     'daphne',
