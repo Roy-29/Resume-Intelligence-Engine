@@ -1,0 +1,134 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}Interview: {{ interview.job_application.candidate_analysis.candidate_name }}{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="padding: 20px; max-width: 900px;">
+
+    <div style="margin-bottom: 24px;">
+        <a href="{% url 'recruiter:interview_calendar' %}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">← Back to Interviews</a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+        {% if message.tags == 'error' %}background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+        {% else %}background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">📅 Interview Details</h1>
+    <p style="color: var(--text-muted); margin-bottom: 32px;">
+        Full details for the scheduled interview session.
+    </p>
+
+    <!-- Status + Actions Header -->
+    <div class="glass-card" style="padding: 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <span style="font-size: 2.5rem;">
+                {% if interview.interview_type == 'phone' %}📱
+                {% elif interview.interview_type == 'video' %}📹
+                {% elif interview.interview_type == 'onsite' %}🏢
+                {% elif interview.interview_type == 'technical' %}💻
+                {% elif interview.interview_type == 'hr' %}🤝
+                {% endif %}
+            </span>
+            <div>
+                <h2 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 4px;">{{ interview.get_interview_type_display }}</h2>
+                <span style="padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;
+                    {% if interview.status == 'scheduled' %}background: rgba(59,130,246,0.15); color: #60a5fa;
+                    {% elif interview.status == 'completed' %}background: rgba(34,197,94,0.15); color: #4ade80;
+                    {% elif interview.status == 'cancelled' %}background: rgba(239,68,68,0.15); color: #f87171;
+                    {% elif interview.status == 'no_show' %}background: rgba(234,179,8,0.15); color: #facc15;
+                    {% endif %}">
+                    {{ interview.get_status_display }}
+                </span>
+            </div>
+        </div>
+        {% if interview.status == 'scheduled' %}
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{% url 'recruiter:interview_edit' interview.pk %}" class="btn-secondary" style="padding: 8px 20px; font-size: 0.9rem; margin: 0;">✏️ Edit</a>
+            <form method="POST" action="{% url 'recruiter:interview_complete' interview.pk %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary" style="padding: 8px 20px; font-size: 0.9rem; margin: 0; background: linear-gradient(135deg, #10b981, #059669);">✅ Mark Complete</button>
+            </form>
+            <form method="POST" action="{% url 'recruiter:interview_cancel' interview.pk %}" style="margin: 0;" onsubmit="return confirm('Cancel this interview? The candidate will be notified.')">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary" style="padding: 8px 20px; font-size: 0.9rem; margin: 0; color: var(--danger); border-color: rgba(239,68,68,0.3);">❌ Cancel</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Details Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+        <!-- Candidate Info -->
+        <div class="glass-card" style="padding: 24px;">
+            <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Candidate</h3>
+            <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">{{ interview.job_application.candidate_analysis.candidate_name|default:"Unknown" }}</p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">
+                📧 {{ interview.job_application.candidate_analysis.email|default:"—" }}
+            </p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">
+                🎓 {{ interview.job_application.candidate_analysis.education_level|default:"—" }} · {{ interview.job_application.candidate_analysis.experience_years|floatformat:1 }} yrs exp
+            </p>
+            <div style="margin-top: 12px; margin-bottom: 12px;">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">AI Match (Technical Score)</span>
+                <p style="font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-top: 4px;">{{ interview.job_application.candidate_analysis.overall_score|floatformat:0 }} <span style="font-size: 1rem; color: var(--text-muted); font-weight: 600;">/ 100</span></p>
+            </div>
+            
+            <div style="margin-top: 12px;">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">ML Match (Hire Prob)</span>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+                    <span style="font-size: 1.6rem; font-weight: 800; color: {% if interview.job_application.ml_selection_probability >= 70 %}var(--success){% elif interview.job_application.ml_selection_probability >= 40 %}var(--warning){% else %}var(--danger){% endif %};">
+                        {{ interview.job_application.ml_selection_probability|floatformat:0 }}%
+                    </span>
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="height: 100%; width: {{ interview.job_application.ml_selection_probability }}%; background: {% if interview.job_application.ml_selection_probability >= 70 %}var(--success){% elif interview.job_application.ml_selection_probability >= 40 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Info -->
+        <div class="glass-card" style="padding: 24px;">
+            <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Schedule</h3>
+            <div style="margin-bottom: 16px;">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Job Position</span>
+                <p style="font-size: 1rem; font-weight: 600; margin-top: 4px;">{{ interview.job_application.job_posting.title }}</p>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Date & Time</span>
+                <p style="font-size: 1rem; font-weight: 600; margin-top: 4px;">{{ interview.scheduled_at|date:"l, M j, Y — g:i A" }}</p>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Meeting Link</span>
+                {% if interview.meeting_link %}
+                <p style="margin-top: 4px;"><a href="{{ interview.meeting_link }}" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 600;">{{ interview.meeting_link|truncatechars:50 }} ↗</a></p>
+                {% else %}
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 4px;">No meeting link set</p>
+                {% endif %}
+            </div>
+            <div>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Created</span>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">{{ interview.created_at|date:"M j, Y — g:i A" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="glass-card" style="padding: 24px;">
+        <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Notes & Agenda</h3>
+        {% if interview.notes %}
+        <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.7; white-space: pre-wrap;">{{ interview.notes }}</p>
+        {% else %}
+        <p style="font-size: 0.9rem; color: var(--text-muted); font-style: italic;">No notes added for this interview.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

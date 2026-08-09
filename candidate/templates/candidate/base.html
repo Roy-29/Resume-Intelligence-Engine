@@ -1,0 +1,157 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-Powered Resume Analyzer — Get intelligent insights, scores, and improvement suggestions for your resume.">
+    <title>{% block title %}AI Resume Analyzer{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'candidate/img/favicon.png' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'candidate/css/style.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    {% if user.is_authenticated %}
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--bg-primary);
+            margin: 0;
+            flex-direction: row;
+        }
+        .auth-sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-glass);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            z-index: 100;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .auth-sidebar-brand {
+            padding: 0 24px 24px 24px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-glass);
+            margin-bottom: 24px;
+        }
+        .auth-sidebar-item {
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            border-right: 4px solid transparent;
+        }
+        .auth-sidebar-item:hover, .auth-sidebar-item.active {
+            color: var(--text-primary);
+            background: var(--bg-glass);
+            border-right-color: var(--accent-primary);
+        }
+        .auth-main-content {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+        .auth-content-area {
+            padding: 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+    </style>
+    {% endif %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    {% if user.is_authenticated %}
+    <nav class="auth-sidebar">
+        <div class="auth-sidebar-brand" style="border-bottom: 1px solid var(--border-glass); padding: 0 24px 32px 24px; margin-bottom: 24px;">
+            <a href="{% url 'candidate:upload' %}" style="text-decoration: none; display: flex; align-items: center; gap: 12px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #10b981, #3b82f6); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                    <span style="font-size: 1.4rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">⚡</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 1.25rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1.1;">AI Resume</span>
+                    <span style="font-size: 0.75rem; font-weight: 500; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase;">Analyzer</span>
+                </div>
+            </a>
+        </div>
+
+        <a href="{% url 'candidate:upload' %}" class="auth-sidebar-item {% if request.resolver_match.url_name == 'upload' %}active{% endif %}">
+            <span>⚡</span> Analyse Resume
+        </a>
+        <a href="{% url 'candidate:jobs_list' %}" class="auth-sidebar-item {% if request.resolver_match.url_name == 'jobs_list' %}active{% endif %}">
+            <span>💼</span> Job Board
+        </a>
+        <a href="{% url 'candidate:resume_builder' %}" class="auth-sidebar-item {% if request.resolver_match.url_name == 'resume_builder' %}active{% endif %}">
+            <span>📝</span> Resume Builder
+        </a>
+        <a href="{% url 'candidate:github_analyzer' %}" class="auth-sidebar-item {% if request.resolver_match.url_name == 'github_analyzer' %}active{% endif %}">
+            <span>🐙</span> Github Analyser
+        </a>
+        <a href="{% url 'candidate:inbox' %}" class="auth-sidebar-item {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
+            <span>📬</span> Inbox
+        </a>
+        <a href="{% url 'candidate:profile' %}" class="auth-sidebar-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+            <span>👤</span> Profile
+        </a>
+        <div style="flex-grow: 1;"></div>
+        
+        {% if user.profile.is_recruiter %}
+        <a href="{% url 'recruiter:ats_dashboard' %}" class="auth-sidebar-item" style="color: var(--secondary);">
+            <span>🎯</span> Recruiter Portal
+        </a>
+        {% endif %}
+
+        <a href="{% url 'candidate:logout' %}" class="auth-sidebar-item" style="color: var(--danger); border-top: 1px solid var(--border-glass);">
+            <span>🚪</span> Logout
+        </a>
+    </nav>
+
+    <main class="auth-main-content">
+        <div class="auth-content-area">
+    {% else %}
+    <!-- Public Minimal Layout -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{% url 'candidate:upload' %}" class="nav-brand">
+                <span class="brand-icon">⚡</span>
+                <span class="brand-text">AI Resume<span class="brand-highlight">Analyzer</span></span>
+            </a>
+            <div class="nav-links">
+                <a href="{% url 'candidate:login' %}" class="nav-btn">Log In</a>
+                <a href="{% url 'candidate:signup' %}" class="nav-btn primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+    {% endif %}
+
+        {% block content %}{% endblock %}
+
+    {% if user.is_authenticated %}
+        </div>
+    </main>
+    {% else %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <p>&copy; 2025 AI Resume Analyzer — Antigravity Recruitment Platform</p>
+        </div>
+    </footer>
+    {% endif %}
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

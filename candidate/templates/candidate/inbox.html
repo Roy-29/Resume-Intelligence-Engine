@@ -1,0 +1,82 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}Inbox — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width: 800px; margin: 0 auto; padding-bottom: 60px;">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 800;">📬 Inbox</h1>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Notifications and recruiter messages in one place.</p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <span style="background: rgba(255, 255, 255, 0.05); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; color: var(--text-muted);">
+                {{ unread_count }} unread
+            </span>
+            {% if unread_count > 0 %}
+            <form method="POST" action="{% url 'candidate:mark_all_read' %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary" style="padding: 6px 14px; font-size: 0.8rem; cursor: pointer;">✓ Mark All Read</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if timeline %}
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for item in timeline %}
+
+        {% if item.type == 'notification' %}
+        <!-- System Notification -->
+        <div class="glass-card no-hover" style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+            {% if not item.is_read %}border-left: 4px solid var(--primary);{% else %}opacity: 0.7;{% endif %}">
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <span style="background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">🔔 System</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">{{ item.date|timesince }} ago</span>
+                </div>
+                <p style="font-size: 1rem; font-weight: {% if not item.is_read %}600{% else %}400{% endif %};">
+                    {{ item.message }}
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-left: 16px;">
+                {% if item.link %}
+                <a href="{{ item.link }}" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">View</a>
+                {% endif %}
+                {% if not item.is_read %}
+                <form method="POST" action="{% url 'candidate:mark_notification_read' item.id %}" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; cursor: pointer;">✓</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% elif item.type == 'message' %}
+        <!-- Recruiter Message -->
+        <div class="glass-card no-hover" style="padding: 20px 24px; border-left: 4px solid var(--secondary);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <span style="background: rgba(168,85,247,0.15); color: #c084fc; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">📩 Message</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">{{ item.date|timesince }} ago</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">· Re: {{ item.job_title }}</span>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">{{ item.subject }}</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;">{{ item.body }}</p>
+        </div>
+
+        {% endif %}
+
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card no-hover" style="text-align: center; padding: 60px;">
+        <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">📬</div>
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Your Inbox is Empty</h3>
+        <p style="color: var(--text-muted);">When a recruiter sends you a message or you receive a notification, it will appear here.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

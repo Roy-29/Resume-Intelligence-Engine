@@ -1,0 +1,286 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}AI Report — {{ a.candidate_name|default:"Resume" }} — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="report-container">
+
+    <!-- Report Header -->
+    <div class="glass-card no-hover animate-in" style="text-align:center;margin-bottom:32px">
+        <h1 style="font-size:1.8rem;font-weight:800;margin-bottom:8px">
+            🧠 AI Resume Analysis Report
+        </h1>
+        <p style="color:var(--text-secondary)">
+            {{ a.candidate_name|default:"Candidate" }}
+            {% if a.email %} · {{ a.email }}{% endif %}
+            {% if a.phone %} · {{ a.phone }}{% endif %}
+        </p>
+        <p style="color:var(--text-muted);font-size:0.8rem;margin-top:4px">
+            Generated on {{ a.uploaded_at|date:"F j, Y" }}
+        </p>
+
+        {% if not shared %}
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a href="{% url 'candidate:download_pdf' a.pk %}" class="btn-primary" style="width:auto;margin-top:0">📥
+                Download PDF</a>
+            <a href="{% url 'candidate:dashboard' a.pk %}" class="btn-secondary">📊 Dashboard</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 1. Resume Overview -->
+    <div class="report-section glass-card no-hover animate-in delay-1">
+        <h2>📋 1. Resume Overview</h2>
+        <table class="report-table">
+            <tr>
+                <td style="font-weight:600;width:40%">Name</td>
+                <td>{{ a.candidate_name|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Email</td>
+                <td>{{ a.email|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Phone</td>
+                <td>{{ a.phone|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Category</td>
+                <td style="text-transform:capitalize">{{ a.resume_category }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Experience</td>
+                <td>{{ a.experience_years|floatformat:0 }} years</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Education</td>
+                <td>{{ a.education_level|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Skills Found</td>
+                <td>{{ a.extracted_skills|length }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Source File</td>
+                <td>{{ a.original_filename }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 2. Skill Breakdown -->
+    <div class="report-section glass-card no-hover animate-in delay-1">
+        <h2>🛠️ 2. Skill Breakdown</h2>
+        <div class="skill-tags" style="margin-bottom:16px">
+            {% for skill in a.extracted_skills %}
+            <span class="skill-tag neutral">{{ skill }}</span>
+            {% empty %}
+            <span style="color:var(--text-muted)">No skills detected</span>
+            {% endfor %}
+        </div>
+        <div class="chart-container" style="height:260px;margin-top:16px">
+            <canvas id="skillRadarChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 3. Experience Analysis -->
+    <div class="report-section glass-card no-hover animate-in delay-2">
+        <h2>💼 3. Experience Analysis</h2>
+        <table class="report-table">
+            <tr>
+                <td style="font-weight:600;width:40%">Total Experience</td>
+                <td>{{ a.experience_years|floatformat:1 }} years</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Experience Score</td>
+                <td>{{ a.experience_score|floatformat:0 }} / 100</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Assessment</td>
+                <td>
+                    {% if a.experience_years >= 10 %}
+                    Senior professional with extensive industry experience.
+                    {% elif a.experience_years >= 5 %}
+                    Mid-senior level with solid professional background.
+                    {% elif a.experience_years >= 3 %}
+                    Mid-level professional building strong expertise.
+                    {% elif a.experience_years >= 1 %}
+                    Early-career professional with foundational experience.
+                    {% else %}
+                    Entry-level / Fresher — focus on projects and internships.
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 4. Job Fit Analysis -->
+    <div class="report-section glass-card no-hover animate-in delay-2">
+        <h2>🎯 4. Job Fit Analysis</h2>
+        {% if a.selected_job_role %}
+        <table class="report-table">
+            <tr>
+                <td style="font-weight:600;width:40%">Target Role</td>
+                <td>{{ a.selected_job_role.title }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Match Percentage</td>
+                <td
+                    style="font-weight:700;color:{% if a.job_match_percentage >= 70 %}var(--success){% elif a.job_match_percentage >= 40 %}var(--warning){% else %}var(--danger){% endif %}">
+                    {{ a.job_match_percentage|floatformat:1 }}%</td>
+            </tr>
+        </table>
+        {% if a.matched_skills %}
+        <p style="font-size:0.85rem;font-weight:600;margin:16px 0 8px;color:var(--success)">✓ Matched Skills</p>
+        <div class="skill-tags">
+            {% for s in a.matched_skills %}
+            <span class="skill-tag matched">{{ s }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p style="color:var(--text-muted)">No job role was selected for comparison.</p>
+        {% endif %}
+    </div>
+
+    <!-- 5. Missing Skills -->
+    <div class="report-section glass-card no-hover animate-in delay-3">
+        <h2>⚠️ 5. Missing Skills</h2>
+        {% if a.missing_skills %}
+        <div class="skill-tags">
+            {% for s in a.missing_skills %}
+            <span class="skill-tag missing">✗ {{ s }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted)">
+            {% if a.selected_job_role %}
+            No critical skill gaps identified — great match!
+            {% else %}
+            Select a job role to identify skill gaps.
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- 6. Improvement Recommendations -->
+    <div class="report-section glass-card no-hover animate-in delay-3">
+        <h2>💡 6. Improvement Recommendations</h2>
+        <ul class="suggestion-list">
+            {% for s in a.suggestions %}
+            <li class="suggestion-item">
+                <span class="suggestion-icon">{{ forloop.counter }}.</span>
+                <span>{{ s }}</span>
+            </li>
+            {% empty %}
+            <li style="color:var(--text-muted)">No suggestions available.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 7. Resume Optimization Score -->
+    <div class="report-section glass-card no-hover animate-in delay-4">
+        <h2>📊 7. Resume Optimization Score</h2>
+        <div style="text-align:center;margin:20px 0">
+            <div class="score-circle"
+                style="--score-pct:{{ a.overall_score }};--score-color:{{ a.score_color }};margin:0 auto">
+                <span class="score-number">{{ a.overall_score|floatformat:0 }}</span>
+                <span class="score-of">/ 100</span>
+            </div>
+            <span
+                class="score-badge {% if a.overall_score >= 80 %}badge-excellent{% elif a.overall_score >= 60 %}badge-good{% elif a.overall_score >= 40 %}badge-average{% else %}badge-weak{% endif %}"
+                style="margin-top:12px;display:inline-flex">
+                {{ a.score_label }}
+            </span>
+        </div>
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Weight</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Skill Strength</td>
+                    <td>40%</td>
+                    <td>{{ a.skill_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Experience Relevance</td>
+                    <td>20%</td>
+                    <td>{{ a.experience_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Keyword Optimization</td>
+                    <td>15%</td>
+                    <td>{{ a.keyword_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Education</td>
+                    <td>10%</td>
+                    <td>{{ a.education_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Completeness</td>
+                    <td>15%</td>
+                    <td>{{ a.completeness_score|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 8. Suggested Career Paths -->
+    <div class="report-section glass-card no-hover animate-in delay-4">
+        <h2>🚀 8. Suggested Career Paths</h2>
+        {% if a.career_paths %}
+        <ul class="career-list">
+            {% for cp in a.career_paths %}
+            <li class="career-item">
+                <div>
+                    <div class="career-role">{{ cp.role }}</div>
+                    <div class="career-cat">{{ cp.category }}</div>
+                </div>
+                <span class="career-fit {% if cp.fit >= 60 %}fit-high{% elif cp.fit >= 30 %}fit-mid{% else %}fit-low{% endif %}">{{ cp.fit }}% fit</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color:var(--text-muted)">Not enough data to suggest career paths.</p>
+        {% endif %}
+    </div>
+
+    <!-- Share Link -->
+    {% if not shared %}
+    <div class="glass-card no-hover animate-in delay-5" style="margin-bottom:32px">
+        <div class="section-title"><span class="ico">🔗</span> Share Your Report</div>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px">
+            Share this link with recruiters or mentors:
+        </p>
+        <div class="share-box">
+            <input type="text" class="share-input" id="shareLink" readonly
+                value="{{ request.scheme }}://{{ request.get_host }}{% url 'candidate:share_report' a.share_token %}">
+            <button class="btn-copy" onclick="copyShare()">📋 Copy</button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.skillCategories = {{ skill_categories | safe }};
+    window.marketData = {{ market_json | safe }};
+
+    function copyShare() {
+        const input = document.getElementById('shareLink');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        const btn = document.querySelector('.btn-copy');
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+    }
+</script>
+<script src="{% static 'candidate/js/charts.js' %}"></script>
+{% endblock %}

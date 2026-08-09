@@ -1,0 +1,567 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}Job Apps: {{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="padding: 0 0 20px 0;">
+    
+    <!-- Breadcrumb + Header -->
+    <div style="margin-bottom: 30px;">
+        <a href="{% url 'recruiter:ats_dashboard' %}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">← Back to ATS</a>
+        <h1 style="font-size: 2rem; font-weight: 800; margin-top: 10px;">{{ job.title }}</h1>
+        <p style="color: var(--text-secondary);">Applications ranked by AI Selection Probability</p>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500; background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Actions Panel -->
+    <div class="glass-card" style="padding: 16px 24px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: linear-gradient(145deg, rgba(30,41,59,0.7), rgba(15,23,42,0.9)); border: 1px solid rgba(99,102,241,0.2);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-right: auto;">
+            <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(99,102,241,0.1); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                ⚙️
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: white;">Job Controls</h3>
+                <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Manage candidates & collect resumes</p>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button onclick="compareSelected()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                <span>⚖️</span> Compare Selected
+            </button>
+            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1);"></div>
+            <button onclick="document.getElementById('bulkUploadInput').click()" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(99,102,241,0.3); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(99,102,241,0.4)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(99,102,241,0.3)'">
+                <span>📁</span> Bulk Upload Custom Resumes
+            </button>
+            <button onclick="generatePublicLink()" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #10b981; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(16,185,129,0.2)'" onmouseout="this.style.background='rgba(16,185,129,0.1)'">
+                <span>🔗</span> Generate Public Link
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden Bulk Upload Form -->
+    <input type="file" id="bulkUploadInput" multiple accept=".pdf,.docx" style="display: none;" onchange="handleBulkUpload(this)">
+    
+    <div id="uploadProgress" style="display: none; padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500; background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3);">
+        ⏳ Uploading files, please wait...
+    </div>
+
+    <!-- Candidate Table -->
+    <div class="glass-card" style="padding: 20px; overflow: visible;">
+        {% if applications %}
+        <table class="dt-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <tr>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;"><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Rank</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Candidate</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">AI Match (Technical)</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">ML Match (Hire Prob)</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Status</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in applications %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 16px;"><input type="checkbox" class="cmp-check" value="{{ app.candidate_analysis.pk }}"></td>
+                    <td style="padding: 16px; font-weight: 700; color: var(--text-muted);">#{{ forloop.counter }}</td>
+                    <td style="padding: 16px;">
+                        <div style="font-weight: 600;">{{ app.candidate_analysis.candidate_name|default:"Unknown" }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">{{ app.candidate_analysis.education_level }} • {{ app.candidate_analysis.experience_years }} yrs</div>
+                    </td>
+                    <td style="padding: 16px; font-size: 0.9rem; font-weight: 600;">
+                        {{ app.candidate_analysis.overall_score|floatformat:0 }} / 100
+                    </td>
+                    <td style="padding: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: 700; font-size: 1.1rem; color: {% if app.ml_selection_probability >= 70 %}var(--success){% elif app.ml_selection_probability >= 40 %}var(--warning){% else %}var(--danger){% endif %};">
+                                {{ app.ml_selection_probability|floatformat:1 }}%
+                            </span>
+                            <div style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: {{ app.ml_selection_probability }}%; background: {% if app.ml_selection_probability >= 70 %}var(--success){% elif app.ml_selection_probability >= 40 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 16px;">
+                        <form method="POST" action="{% url 'recruiter:change_status' app.pk %}" class="status-form" style="margin:0; text-align: left;">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="{{ app.status }}">
+                            <div class="custom-select-wrapper" style="position: relative; display: inline-block;">
+                                <div class="custom-select-trigger" onclick="toggleDropdown(event, this)" style="padding: 4px 10px; font-size: 0.8rem; border: 1px solid 
+                                        {% if app.status == 'applied' %}rgba(255,255,255,0.2)
+                                        {% elif app.status == 'shortlisted' %}rgba(234,179,8,0.5)
+                                        {% elif app.status == 'rejected' %}rgba(239,68,68,0.5)
+                                        {% elif app.status == 'hired' %}rgba(59,130,246,0.5)
+                                        {% endif %}; border-radius: 6px; background: rgba(0,0,0,0.3); color: white; cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-width: 120px; transition: all 0.2s; white-space: nowrap;">
+                                    <span class="custom-select-label" style="font-weight: 500;">{% if app.status == 'applied' %}📋 Applied{% elif app.status == 'shortlisted' %}⭐ Shortlisted{% elif app.status == 'rejected' %}❌ Rejected{% elif app.status == 'hired' %}🎉 Hired{% endif %}</span>
+                                    <span style="font-size: 0.7rem; margin-left: 8px; opacity: 0.7;">▼</span>
+                                </div>
+                                <div class="custom-options" style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: #1e1e2d; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                                    <div onclick="selectStatus(this, 'applied')" style="padding: 8px 10px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; color: #fff;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'">📋 Applied</div>
+                                    <div onclick="selectStatus(this, 'shortlisted')" style="padding: 8px 10px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; color: #fff;" onmouseover="this.style.background='rgba(234,179,8,0.15)'" onmouseout="this.style.background='transparent'">⭐ Shortlisted</div>
+                                    <div onclick="selectStatus(this, 'rejected')" style="padding: 8px 10px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; color: #fff;" onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='transparent'">❌ Rejected</div>
+                                    <div onclick="selectStatus(this, 'hired')" style="padding: 8px 10px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; color: #fff;" onmouseover="this.style.background='rgba(59,130,246,0.15)'" onmouseout="this.style.background='transparent'">🎉 Hired</div>
+                                </div>
+                            </div>
+                        </form>
+                    </td>
+                    <td style="padding: 16px; text-align: right; white-space: nowrap;">
+                        <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; width: 220px;">
+                            {% if app.candidate_analysis.resume_file %}
+                            <a href="{% url 'recruiter:view_resume' app.candidate_analysis.pk %}" target="_blank" class="btn-secondary" style="flex: 1; padding: 6px 10px; margin: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #10b981;" title="View Original CV">📄</a>
+                            {% endif %}
+                            <a href="{% url 'recruiter:schedule_interview' app.pk %}" class="btn-secondary" style="flex: 1; padding: 6px 10px; margin: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px;" title="Schedule Interview">📅</a>
+                            <a href="{% url 'recruiter:send_message' app.pk %}" class="btn-secondary" style="flex: 1; padding: 6px 10px; margin: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px;" title="Send Message">📩</a>
+                            
+                            <a href="{% url 'recruiter:ai_report' app.candidate_analysis.pk %}" class="btn-primary" style="width: 100%; padding: 8px 12px; margin: 0; margin-top: 4px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; box-shadow: 0 4px 10px rgba(59,130,246,0.3); gap: 8px; font-weight: 600; font-size: 0.85rem;" title="View Full Report">📋 <span>Full Report</span></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding: 40px; text-align: center;">
+            <span style="display: block; color: var(--text-muted); margin-bottom: 10px;">No candidates have applied to this job yet.</span>
+            <a href="{% url 'recruiter:ats_dashboard' %}" class="btn-secondary" style="display: inline-block;">Return to Dashboard</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Centralized Pending Resumes Table -->
+    {% if centralized_resumes %}
+    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 40px 0;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+            <h2 style="font-size: 1.25rem;">Processing Queue (Bulk Uploads)</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Unprocessed resumes from bulk upload or public link.</p>
+        </div>
+        <button onclick="analyzePending()" class="btn-primary" style="margin: 0; padding: 8px 20px; font-size: 0.9rem;" id="analyzeBtn">⚡ Analyze Pending Resumes</button>
+    </div>
+
+    <div class="glass-card" style="padding: 20px; overflow: visible; margin-bottom: 30px;">
+        <table class="dt-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <tr>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">File / Candidate Name</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Uploaded Via</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Upload Date</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Status</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Score / Fit</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cv in centralized_resumes %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 16px; font-weight: 600;">{{ cv.candidate_name }}</td>
+                    <td style="padding: 16px; font-size: 0.85rem; color: var(--text-secondary);">
+                        {% if cv.uploaded_via_public_link %}
+                            <span style="color: #a855f7;">🌐 Public Link</span>
+                        {% else %}
+                            <span style="color: #3b82f6;">📁 Direct Upload</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 16px; font-size: 0.85rem; color: var(--text-muted);">{{ cv.uploaded_at|date:"M j, g:i a" }}</td>
+                    <td style="padding: 16px;">
+                        <span style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; text-transform: uppercase;
+                            {% if cv.status == 'New' %}color: var(--warning);{% elif cv.status == 'Analyzed' %}color: var(--success);{% else %}color: var(--text-muted);{% endif %}">
+                            {{ cv.status }}
+                        </span>
+                    </td>
+                    <td style="padding: 16px;">
+                        {% if cv.status != 'New' %}
+                            <div style="font-weight: 700; color: {% if cv.score >= 70 %}var(--success){% elif cv.score >= 40 %}var(--warning){% else %}var(--danger){% endif %};">
+                                {{ cv.score|floatformat:1 }}
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">{{ cv.fit_level|default:"-" }}</div>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 16px; text-align: right;">
+                        {% if cv.status != 'New' %}
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                {% if cv.resume_file %}
+                                <a href="{% url 'recruiter:view_centralized_resume' cv.id %}" target="_blank" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; margin: 0; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: #10b981;">📄 View CV</a>
+                                {% endif %}
+                                <a href="{% url 'recruiter:ai_report' cv.id %}" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; margin: 0; background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.2); color: #3b82f6;">📋 Full Report</a>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- AI Report Modal -->
+<div id="aiReportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: var(--surface-light); border: 1px solid rgba(59,130,246,0.2); border-radius: 16px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 30px; position: relative;">
+        
+        <button onclick="closeAIReportModal()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; opacity: 0.6;">&times;</button>
+        
+        <h2 id="aiModalCandidateName" style="font-size: 1.5rem; margin-bottom: 5px;">AI Candidate Analysis</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 25px;">Applied for: <span id="aiModalJobTitle" style="color: white; font-weight: 600;"></span></p>
+
+        <div style="display: flex; gap: 20px; margin-bottom: 25px;">
+            <div style="flex: 1; background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.1); border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 0.9rem; color: #3b82f6; margin-bottom: 5px;">AI Match Score</div>
+                <div id="aiModalScore" style="font-size: 2.5rem; font-weight: 800;">0</div>
+            </div>
+            <div style="flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 5px;">Fit Level</div>
+                <div id="aiModalFit" style="font-size: 1.5rem; font-weight: 700; line-height: 1.3; margin-top: 10px;">-</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 10px;">Extracted Required Skills</h3>
+            <div id="aiModalSkills" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <!-- Skills populated here -->
+            </div>
+        </div>
+
+        <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 20px;">
+            <h3 style="font-size: 1rem; color: #3b82f6; margin-bottom: 5px;">Engine Recommendation</h3>
+            <div id="aiModalRecommendation" style="font-weight: 600; font-size: 1.1rem;">-</div>
+        </div>
+        
+        <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end;">
+            <button onclick="closeAIReportModal()" class="btn-secondary" style="margin: 0;">Close</button>
+            <button id="aiShortlistBtn" class="btn-primary" style="margin: 0; background: #3b82f6; border-color: #3b82f6;">⭐ Shortlist Candidate</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ML Report Modal -->
+<div id="mlReportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: var(--surface-light); border: 1px solid rgba(234,179,8,0.2); border-radius: 16px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 30px; position: relative;">
+        
+        <button onclick="closeMLReportModal()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; opacity: 0.6;">&times;</button>
+        
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px;">
+            <span style="font-size: 2rem;">🤖</span>
+            <div>
+                <h2 id="mlModalCandidateName" style="font-size: 1.5rem; margin-bottom: 0;">Candidate Name</h2>
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Manually Trained ML Model Evaluation</p>
+            </div>
+        </div>
+
+        <div style="background: rgba(234,179,8,0.05); border: 1px solid rgba(234,179,8,0.2); border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+            <div style="margin-bottom: 20px; text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 5px;">Active ML Model</div>
+                <div id="mlModalModelUsed" style="font-size: 1.25rem; font-weight: 700; color: #eab308;">-</div>
+            </div>
+            
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1; text-align: center; border-right: 1px solid rgba(255,255,255,0.05);">
+                    <div style="font-size: 0.9rem; color: var(--text-muted);">Predicted Score</div>
+                    <div id="mlModalScore" style="font-size: 2.5rem; font-weight: 800; color: white;">0</div>
+                </div>
+                <div style="flex: 1; text-align: center;">
+                    <div style="font-size: 0.9rem; color: var(--text-muted);">Category Fit</div>
+                    <div id="mlModalFit" style="font-size: 1.5rem; font-weight: 700; color: white; margin-top: 10px;">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="mlNoDataWarning" style="display: none; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px; color: #ef4444; font-size: 0.9rem;">
+            No ML prediction data available for this resume. Ensure you have trained the models via terminal and newly analyzed this resume.
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button onclick="closeMLReportModal()" class="btn-secondary" style="margin: 0;">Close</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function toggleAll(source) {
+    document.querySelectorAll('.cmp-check').forEach(cb => cb.checked = source.checked);
+}
+function compareSelected() {
+    const ids = [...document.querySelectorAll('.cmp-check:checked')].map(cb => cb.value);
+    if (ids.length < 2) { alert('Select at least 2 candidates to compare.'); return; }
+    window.location.href = "{% url 'recruiter:compare_candidates' %}?" + ids.map(id => 'ids=' + id).join('&');
+}
+
+// BULK UPLOAD SYSTEM
+async function handleBulkUpload(input) {
+    if (!input.files || input.files.length === 0) return;
+    
+    document.getElementById('uploadProgress').style.display = 'block';
+    
+    const formData = new FormData();
+    formData.append('job_id', '{{ job.id }}');
+    for (let i = 0; i < input.files.length; i++) {
+        formData.append('resumes', input.files[i]);
+    }
+    
+    try {
+        const response = await fetch("/api/resumes/bulk-upload/", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(`Upload successful! ${data.uploaded_count} resumes uploaded.`);
+            window.location.reload();
+        } else {
+            alert('Upload failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Upload Request failed: ' + err);
+    } finally {
+        document.getElementById('uploadProgress').style.display = 'none';
+        input.value = '';
+    }
+}
+
+async function generatePublicLink() {
+    try {
+        const response = await fetch(`/api/jobs/{{ job.id }}/generate-upload-link/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            const url = data.upload_link;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Public Upload Link generated and copied to clipboard!\n\nLink: ' + url);
+            }).catch(() => {
+                prompt('Public Upload Link generated. Copy below:', url);
+            });
+        } else {
+            alert('Generation failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Request failed: ' + err);
+    }
+}
+
+async function analyzePending() {
+    const btn = document.getElementById('analyzeBtn');
+    btn.innerText = '⏳ Analyzing...';
+    btn.disabled = true;
+    
+    const resumeIds = [];
+    {% for cv in centralized_resumes %}
+        {% if cv.status == 'New' %}
+            resumeIds.push({{ cv.id }});
+        {% endif %}
+    {% endfor %}
+    
+    if (resumeIds.length === 0) {
+        alert('No pending resumes to analyze.');
+        btn.innerText = '⚡ Analyze Pending Resumes';
+        btn.disabled = false;
+        return;
+    }
+    
+    try {
+        const response = await fetch("/api/resumes/bulk-analyze/", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                job_id: {{ job.id }},
+                resume_ids: resumeIds
+            })
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(`Analysis complete! Candidates processed successfully.`);
+            window.location.reload();
+        } else {
+            alert('Analysis failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Request failed: ' + err);
+    } finally {
+        btn.innerText = '⚡ Analyze Pending Resumes';
+        btn.disabled = false;
+    }
+}
+
+// AI DATA REPORT LOGIC
+async function viewAIReport(resumeId, type='resume') {
+    try {
+        const response = await fetch(`/api/resume/${resumeId}/analysis-report/?type=${type}`, {
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        if (!response.ok) { alert("Could not load reporting data."); return; }
+        
+        const data = await response.json();
+        
+        document.getElementById('aiModalCandidateName').innerText = data.candidate_name || "Unknown Candidate";
+        document.getElementById('aiModalJobTitle').innerText = data.job_applied_for;
+        
+        const scoreEl = document.getElementById('aiModalScore');
+        scoreEl.innerText = data.final_score.toFixed(1);
+        if (data.final_score >= 70) scoreEl.style.color = "var(--success)";
+        else if (data.final_score >= 40) scoreEl.style.color = "var(--warning)";
+        else scoreEl.style.color = "var(--danger)";
+        
+        document.getElementById('aiModalFit').innerText = data.fit_level;
+        document.getElementById('aiModalRecommendation').innerText = data.recommendation;
+        
+        const skillsContainer = document.getElementById('aiModalSkills');
+        skillsContainer.innerHTML = '';
+        if (data.matched_skills && data.matched_skills.length > 0) {
+            data.matched_skills.forEach(skill => {
+                const el = document.createElement('span');
+                el.style.cssText = 'background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 16px; font-size: 0.8rem;';
+                el.innerText = skill;
+                skillsContainer.appendChild(el);
+            });
+        } else {
+            skillsContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 0.9rem;">No skills identified.</span>';
+        }
+
+        const shortlistBtn = document.getElementById('aiShortlistBtn');
+        shortlistBtn.onclick = async () => {
+            try {
+                const patchRes = await fetch(`/api/resume/${resumeId}/shortlist/`, {
+                    method: 'PATCH',
+                    headers: {'X-CSRFToken': '{{ csrf_token }}'}
+                });
+                if (patchRes.ok) { alert("Candidate Shortlisted!"); window.location.reload(); } 
+                else { alert("Action failed."); }
+            } catch (e) { alert("Error: " + e); }
+        };
+        
+        const modal = document.getElementById('aiReportModal');
+        modal.style.display = 'flex';
+        modal.style.opacity = '0';
+        setTimeout(() => modal.style.opacity = '1', 10);
+        
+    } catch (err) { alert("Error"); console.error(err); }
+}
+
+function closeAIReportModal() {
+    document.getElementById('aiReportModal').style.display = 'none';
+}
+
+// ML PREDICTION REPORT LOGIC
+async function viewMLReport(resumeId, type='resume') {
+    try {
+        const response = await fetch(`/api/resume/${resumeId}/analysis-report/?type=${type}`, {
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        if (!response.ok) { alert("Could not load ML data."); return; }
+        
+        const data = await response.json();
+        
+        document.getElementById('mlModalCandidateName').innerText = data.candidate_name || "Unknown Candidate";
+        
+        const warningEl = document.getElementById('mlNoDataWarning');
+        const scoreEl = document.getElementById('mlModalScore');
+        const fitEl = document.getElementById('mlModalFit');
+        const modelEl = document.getElementById('mlModalModelUsed');
+
+        if (data.ml_predicted_score !== null && data.ml_predicted_score !== undefined) {
+            warningEl.style.display = 'none';
+            scoreEl.innerText = data.ml_predicted_score.toFixed(1);
+            fitEl.innerText = data.ml_fit_category || 'Unknown';
+            modelEl.innerText = data.ml_model_used || 'Custom ML Model';
+            
+            // Color coding based on high confidence
+            scoreEl.style.color = data.ml_predicted_score > 0.6 ? 'white' : 'var(--text-muted)';
+        } else {
+            warningEl.style.display = 'block';
+            scoreEl.innerText = '-';
+            fitEl.innerText = '-';
+            modelEl.innerText = '-';
+        }
+        
+        const modal = document.getElementById('mlReportModal');
+        modal.style.display = 'flex';
+        modal.style.opacity = '0';
+        setTimeout(() => modal.style.opacity = '1', 10);
+        
+    } catch (err) { alert("Error"); console.error(err); }
+}
+
+function closeMLReportModal() {
+    document.getElementById('mlReportModal').style.display = 'none';
+}
+    // Custom Dropdown UI Logic
+    function toggleDropdown(event, element) {
+        event.stopPropagation();
+        
+        // Close other dropdowns
+        document.querySelectorAll('.custom-options.show').forEach(el => {
+            if (el !== element.nextElementSibling) {
+                el.classList.remove('show');
+                el.style.opacity = '0';
+                el.style.visibility = 'hidden';
+                el.style.transform = 'translateY(-10px)';
+                if (el.parentElement) el.parentElement.style.zIndex = '1';
+            }
+        });
+
+        const optionsList = element.nextElementSibling;
+        const wrapper = element.parentElement;
+        if (optionsList.classList.contains('show')) {
+            optionsList.classList.remove('show');
+            optionsList.style.opacity = '0';
+            optionsList.style.visibility = 'hidden';
+            optionsList.style.transform = 'translateY(-10px)';
+            wrapper.style.zIndex = '1';
+        } else {
+            optionsList.classList.add('show');
+            optionsList.style.opacity = '1';
+            optionsList.style.visibility = 'visible';
+            optionsList.style.transform = 'translateY(0)';
+            wrapper.style.zIndex = '9999';
+        }
+    }
+
+    function selectStatus(element, value) {
+        const wrapper = element.closest('.custom-select-wrapper');
+        const form = wrapper.closest('form');
+        form.querySelector('input[name="status"]').value = value;
+        
+        // Immediate visual update to feel ultra responsive before reload
+        wrapper.querySelector('.custom-select-label').innerHTML = element.innerHTML;
+        wrapper.querySelector('.custom-select-trigger').style.opacity = '0.5';
+        
+        form.submit();
+    }
+
+    // Close on click outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select-wrapper')) {
+            document.querySelectorAll('.custom-options.show').forEach(el => {
+                el.classList.remove('show');
+                el.style.opacity = '0';
+                el.style.visibility = 'hidden';
+                el.style.transform = 'translateY(-10px)';
+                if (el.parentElement) el.parentElement.style.zIndex = '1';
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}Messages — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width: 800px; margin: 0 auto; padding-bottom: 60px;">
+
+    <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 32px;">📩 Recruiter Messages</h1>
+
+    {% if messages_list %}
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+        {% for msg in messages_list %}
+        <div class="glass-card no-hover" style="padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 4px;">{{ msg.subject }}</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">
+                        Re: {{ msg.job_application.job_posting.title }} — {{ msg.sent_at|date:"M j, Y — g:i A" }}
+                    </p>
+                </div>
+            </div>
+            <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;">{{ msg.body }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card no-hover" style="text-align: center; padding: 60px;">
+        <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">📩</div>
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">No Messages Yet</h3>
+        <p style="color: var(--text-muted);">When a recruiter sends you a message about a job application, it will appear here.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

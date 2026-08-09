@@ -1,0 +1,138 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}Interview Calendar{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="padding: 0 0 20px 0;">
+
+    <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 32px;">📅 Interview Calendar</h1>
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+        {% if message.tags == 'error' %}background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+        {% else %}background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Quick Stats -->
+    <div class="grid-4" style="margin-bottom: 30px;">
+        <div class="glass-card" style="padding: 16px 20px; text-align: center;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Scheduled</p>
+            <p style="font-size: 2rem; font-weight: 800; color: var(--primary);">{{ total_scheduled }}</p>
+        </div>
+        <div class="glass-card" style="padding: 16px 20px; text-align: center;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Completed</p>
+            <p style="font-size: 2rem; font-weight: 800; color: var(--success);">{{ total_completed }}</p>
+        </div>
+        <div class="glass-card" style="padding: 16px 20px; text-align: center;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Cancelled</p>
+            <p style="font-size: 2rem; font-weight: 800; color: var(--danger);">{{ total_cancelled }}</p>
+        </div>
+        <div class="glass-card" style="padding: 16px 20px; text-align: center;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">No-Show</p>
+            <p style="font-size: 2rem; font-weight: 800; color: var(--warning);">{{ total_no_show }}</p>
+        </div>
+    </div>
+
+    <!-- Upcoming Interviews -->
+    <h2 style="font-size: 1.25rem; margin-bottom: 16px; color: var(--success);">🟢 Upcoming Interviews</h2>
+    <div class="glass-card" style="padding: 20px; margin-bottom: 40px; overflow: hidden;">
+        {% if upcoming %}
+        <table class="dt-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <tr>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Candidate</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Job</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Type</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Date & Time</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Meeting</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for iv in upcoming %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 16px;">
+                        <div style="font-weight: 600;">{{ iv.job_application.candidate_analysis.candidate_name|default:"Unknown" }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">{{ iv.job_application.candidate_analysis.email|default:"" }}</div>
+                    </td>
+                    <td style="padding: 16px; font-size: 0.9rem;">{{ iv.job_application.job_posting.title }}</td>
+                    <td style="padding: 16px;">
+                        <span style="background: rgba(99,102,241,0.15); color: #818cf8; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">{{ iv.get_interview_type_display }}</span>
+                    </td>
+                    <td style="padding: 16px; font-size: 0.9rem;">{{ iv.scheduled_at|date:"M j, Y — g:i A" }}</td>
+                    <td style="padding: 16px;">
+                        {% if iv.meeting_link %}
+                        <a href="{{ iv.meeting_link }}" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 500;">Join ↗</a>
+                        {% else %}
+                        <span style="color: var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 16px; text-align: right; white-space: nowrap;">
+                        <a href="{% url 'recruiter:interview_detail' iv.pk %}" class="btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; margin-right: 4px;" title="View Details">👁 View</a>
+                        <a href="{% url 'recruiter:interview_edit' iv.pk %}" class="btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; margin-right: 4px;" title="Edit Interview">✏️ Edit</a>
+                        <form method="POST" action="{% url 'recruiter:interview_cancel' iv.pk %}" style="display: inline; margin: 0;" onsubmit="return confirm('Cancel this interview?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; cursor: pointer; color: var(--danger); border-color: rgba(239,68,68,0.3);" title="Cancel Interview">❌</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding: 40px; text-align: center;">
+            <span style="color: var(--text-muted);">No upcoming interviews scheduled.</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Past Interviews -->
+    <h2 style="font-size: 1.25rem; margin-bottom: 16px; color: var(--text-muted);">⚪ Past / Completed</h2>
+    <div class="glass-card" style="padding: 20px; overflow: hidden;">
+        {% if past %}
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <tr>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Candidate</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Job</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Type</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Date</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Status</th>
+                    <th style="padding: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-align: right;">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for iv in past %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 16px; font-weight: 600;">{{ iv.job_application.candidate_analysis.candidate_name|default:"Unknown" }}</td>
+                    <td style="padding: 16px; font-size: 0.9rem;">{{ iv.job_application.job_posting.title }}</td>
+                    <td style="padding: 16px; font-size: 0.85rem;">{{ iv.get_interview_type_display }}</td>
+                    <td style="padding: 16px; font-size: 0.9rem;">{{ iv.scheduled_at|date:"M j, Y" }}</td>
+                    <td style="padding: 16px;">
+                        <span style="padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;
+                            {% if iv.status == 'completed' %}background: rgba(34,197,94,0.15); color: #4ade80;
+                            {% elif iv.status == 'cancelled' %}background: rgba(239,68,68,0.15); color: #f87171;
+                            {% elif iv.status == 'no_show' %}background: rgba(234,179,8,0.15); color: #facc15;
+                            {% else %}background: rgba(255,255,255,0.05); color: var(--text-muted);{% endif %}
+                        ">{{ iv.get_status_display }}</span>
+                    </td>
+                    <td style="padding: 16px; text-align: right;">
+                        <a href="{% url 'recruiter:interview_detail' iv.pk %}" class="btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding: 40px; text-align: center;">
+            <span style="color: var(--text-muted);">No past interviews yet.</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

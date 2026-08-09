@@ -1,0 +1,145 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}CEO Analytics Dashboard{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="animate-in" style="padding: 0 0 20px 0;">
+    
+    <div style="margin-bottom: 30px;">
+        <h1 style="font-size: 2rem; font-weight: 800;">Executive Analytics</h1>
+        <p style="color: var(--text-secondary);">Platform-wide recruitment metrics</p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid-4" style="margin-bottom: 30px;">
+        <div class="glass-card" style="padding: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Total Active Jobs</p>
+            <p style="font-size: 2.5rem; font-weight: 800; color: var(--primary);">{{ total_jobs }}</p>
+        </div>
+        <div class="glass-card" style="padding: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Total Applicants</p>
+            <p style="font-size: 2.5rem; font-weight: 800; color: var(--secondary);">{{ total_apps }}</p>
+        </div>
+        <div class="glass-card" style="padding: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Hired / Fill Rate</p>
+            <p style="font-size: 2.5rem; font-weight: 800; color: var(--success);">{{ hired_count }} <span style="font-size: 1rem; color: var(--text-muted);">({{ fill_rate|floatformat:1 }}%)</span></p>
+        </div>
+        <div class="glass-card" style="padding: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Avg AI Score</p>
+            <p style="font-size: 2.5rem; font-weight: 800; color: var(--warning);">{{ avg_score }}</p>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid-2" style="margin-bottom: 30px;">
+        <!-- Trending -->
+        <div class="glass-card" style="padding: 24px;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 20px;">Platform Hiring Trend</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Domains -->
+        <div class="glass-card" style="padding: 24px;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 20px;">Candidate Domains (K-Means Clustering)</h3>
+            <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center;">
+                <canvas id="domainChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skills Demand -->
+    <div class="glass-card" style="padding: 24px;">
+        <h3 style="font-size: 1.1rem; margin-bottom: 20px;">Top Skills Demand Index</h3>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="skillChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Theme colors
+    const primary = '#3b82f6';
+    const secondary = '#8b5cf6';
+    const success = '#10b981';
+    const gridColor = 'rgba(255, 255, 255, 0.05)';
+    const textColor = 'rgba(255, 255, 255, 0.7)';
+
+    Chart.defaults.color = textColor;
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    // 1. Trend Line Chart
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: {{ months_json|safe }},
+            datasets: [{
+                label: 'Applications Received',
+                data: {{ app_trend_json|safe }},
+                borderColor: primary,
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { grid: { color: gridColor }, beginAtZero: true },
+                x: { grid: { color: gridColor } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 2. Domain Pie Chart
+    new Chart(document.getElementById('domainChart'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ domain_labels_json|safe }},
+            datasets: [{
+                data: {{ domain_data_json|safe }},
+                backgroundColor: [primary, secondary, success, '#f59e0b', '#ec4899'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { position: 'right' }
+            }
+        }
+    });
+
+    // 3. Skills Bar Chart
+    new Chart(document.getElementById('skillChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ skill_labels_json|safe }},
+            datasets: [{
+                label: 'Demand Index',
+                data: {{ skill_data_json|safe }},
+                backgroundColor: secondary,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { grid: { color: gridColor }, beginAtZero: true },
+                x: { grid: { display: false } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+</script>
+{% endblock %}

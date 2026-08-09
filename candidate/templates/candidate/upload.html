@@ -1,0 +1,90 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}Upload Resume — AI Resume Analyzer{% endblock %}
+
+{% block extra_head %}
+<script src="{% static 'candidate/js/upload.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="upload-wrapper">
+
+    <!-- Hero -->
+    <div class="upload-hero animate-in">
+        <h1>Analyse Your Resume<br>with <span class="gradient-text">AI Intelligence</span></h1>
+        <p>Upload your CV and receive a comprehensive AI-powered analysis with scores, skill gaps, and career guidance.
+        </p>
+    </div>
+
+    {% if error %}
+    <div class="error-message animate-in delay-1">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <!-- Upload Card -->
+    <div class="glass-card no-hover animate-in delay-1">
+        <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'candidate:upload' %}">
+            {% csrf_token %}
+
+            <!-- Drop Zone -->
+            <div class="drop-zone" id="dropZone">
+                <span class="drop-icon">📄</span>
+                <h3>Drag & Drop your Resume here</h3>
+                <p>or click to browse — PDF or DOCX, max 10 MB</p>
+                <input type="file" name="resume" id="fileInput" class="file-input" accept=".pdf,.docx">
+            </div>
+
+            <!-- Selected File -->
+            <div class="selected-file" id="selectedFile">
+                <span class="file-icon">📎</span>
+                <span class="file-name" id="fileName"></span>
+                <button type="button" class="file-remove" id="removeFile" title="Remove">&times;</button>
+            </div>
+
+            <!-- Job Role -->
+            <div class="form-group">
+                <label class="form-label" for="jobRole">Select Target Job Role (optional)</label>
+                <select name="job_role" id="jobRole" class="form-select">
+                    <option value="">— Skip job matching —</option>
+                    {% for role in job_roles %}
+                    <option value="{{ role }}">{{ role }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Progress -->
+            <div class="upload-progress" id="uploadProgress">
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">Preparing…</p>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn-primary" id="submitBtn" disabled>
+                <span class="spinner" id="spinner"></span>
+                <span id="submitText">🚀 Analyse My Resume</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Features -->
+    <div class="features-grid animate-in delay-3">
+        <div class="feature-item glass-card">
+            <span class="feature-icon">🧠</span>
+            <h4>NLP Parsing</h4>
+            <p>spaCy-powered entity recognition & skill extraction</p>
+        </div>
+        <div class="feature-item glass-card">
+            <span class="feature-icon">📊</span>
+            <h4>AI Scoring</h4>
+            <p>Multi-factor resume quality score with breakdown</p>
+        </div>
+        <div class="feature-item glass-card">
+            <span class="feature-icon">🎯</span>
+            <h4>Job Matching</h4>
+            <p>TF-IDF & cosine similarity against job roles</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

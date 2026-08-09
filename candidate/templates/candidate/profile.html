@@ -1,0 +1,317 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+{% load candidate_tags %}
+
+{% block title %}Profile Dashboard — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width: 1200px; margin: 0 auto; padding-bottom: 60px;">
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+        {% if message.tags == 'error' %}background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+        {% else %}background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <style>
+        .profile-input {
+            width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+            color: #fff; font-family: inherit; font-size: 0.9rem; transition: border-color 0.2s;
+        }
+        .profile-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.15); }
+        .profile-input::placeholder { color: rgba(255,255,255,0.25); }
+        .profile-input option { background: #1e293b; color: #fff; }
+        .pf-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .pf-value { font-size: 0.95rem; color: var(--text-secondary); padding: 10px 0 2px; min-height: 28px; }
+        .pf-value.empty { color: rgba(255,255,255,0.2); font-style: italic; }
+        .pf-group { margin-bottom: 14px; }
+        .btn-edit { padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(56,189,248,0.3); background: rgba(56,189,248,0.1); color: #38bdf8; cursor: pointer; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-edit:hover { background: rgba(56,189,248,0.2); border-color: #38bdf8; }
+        .btn-save { padding: 12px 28px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; border: none; background: linear-gradient(135deg, #38bdf8, #818cf8); color: #fff; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-save:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(56,189,248,0.3); }
+        .btn-cancel { padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
+        .btn-cancel:hover { background: rgba(255,255,255,0.1); }
+        .avatar-upload { position: relative; cursor: pointer; }
+        .avatar-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .avatar-overlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; font-size: 1.4rem; }
+        .avatar-upload:hover .avatar-overlay { opacity: 1; }
+    </style>
+
+    <!-- ====== PROFILE SECTIONS ====== -->
+    {% if edit_mode %}
+    <form id="profile-form" method="POST" action="{% url 'candidate:profile' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+    {% endif %}
+
+    <!-- 1. Hero / Identity -->
+    <div class="glass-card no-hover" style="margin-bottom: 32px; display: flex; align-items: center; gap: 32px; padding: 40px; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, var(--primary) 0%, transparent 70%); opacity: 0.1; filter: blur(40px); z-index: 0;"></div>
+
+        {% if edit_mode %}
+        <div class="avatar-upload" style="width: 100px; height: 100px; flex-shrink: 0; z-index: 1;">
+            {% if cand_profile.profile_image %}
+            <img src="{{ cand_profile.profile_image.url }}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary);">
+            {% else %}
+            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 800;">{{ user.username.0|upper }}</div>
+            {% endif %}
+            <div class="avatar-overlay">📷</div>
+            <input type="file" accept="image/*" name="profile_image" title="Upload photo">
+        </div>
+        {% else %}
+        <div style="width: 100px; height: 100px; flex-shrink: 0; z-index: 1;">
+            {% if cand_profile.profile_image %}
+            <img src="{{ cand_profile.profile_image.url }}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary);">
+            {% else %}
+            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 800;">{{ user.username.0|upper }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div style="flex: 1; z-index: 1;">
+            <p style="color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 4px;">Candidate Dashboard</p>
+            <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 4px;">{{ cand_profile.full_name|default:user.username }}</h1>
+            <p style="color: var(--text-muted); font-size: 1rem;">{{ cand_profile.current_job_title|default:"" }} {% if cand_profile.current_company %}at <strong style="color: var(--text-secondary);">{{ cand_profile.current_company }}</strong>{% endif %}</p>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">{{ user.email }}</p>
+        </div>
+        <div style="display: flex; gap: 16px; z-index: 1; align-items: center;">
+            <div style="text-align: center;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Top Score</p>
+                <p style="font-size: 2rem; font-weight: 800; color: var(--text-primary);">{{ highest_score|floatformat:0 }}<span style="font-size: 1rem; color: var(--text-muted);">/100</span></p>
+            </div>
+            <div style="text-align: center;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Avg Match</p>
+                <p style="font-size: 2rem; font-weight: 800; color: var(--secondary);">{{ avg_match|floatformat:0 }}<span style="font-size: 1rem; color: var(--text-muted);">%</span></p>
+            </div>
+            <div style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 16px;">
+                {% if not edit_mode %}
+                <a href="?edit=1" class="btn-edit">✏️ Edit Profile</a>
+                {% else %}
+                <a href="{% url 'candidate:profile' %}" class="btn-cancel">✕ Cancel</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Personal Information -->
+    <div class="glass-card no-hover" style="padding: 28px; margin-bottom: 20px; border: 1px solid rgba(56,189,248,0.15);">
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--primary);">👤</span> Personal Information
+        </h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="pf-group">
+                <label class="pf-label">Full Name</label>
+                {% if edit_mode %}{{ form.full_name }}{% else %}<div class="pf-value {% if not cand_profile.full_name %}empty{% endif %}">{{ cand_profile.full_name|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Email Address</label>
+                {% if edit_mode %}{{ form.email }}{% else %}<div class="pf-value">{{ user.email|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Phone</label>
+                {% if edit_mode %}{{ form.phone }}{% else %}<div class="pf-value {% if not cand_profile.phone %}empty{% endif %}">{{ cand_profile.phone|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Date of Birth</label>
+                {% if edit_mode %}{{ form.date_of_birth }}{% else %}<div class="pf-value {% if not cand_profile.date_of_birth %}empty{% endif %}">{{ cand_profile.date_of_birth|date:"M j, Y"|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Location</label>
+                {% if edit_mode %}{{ form.location }}{% else %}<div class="pf-value {% if not cand_profile.location %}empty{% endif %}">{{ cand_profile.location|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group" style="grid-column: span 2;">
+                <label class="pf-label">Bio</label>
+                {% if edit_mode %}{{ form.bio }}{% else %}<div class="pf-value {% if not cand_profile.bio %}empty{% endif %}" style="line-height: 1.6;">{{ cand_profile.bio|default:"No bio written yet" }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Education -->
+    <div class="glass-card no-hover" style="padding: 28px; margin-bottom: 20px; border: 1px solid rgba(139,92,246,0.15);">
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--secondary);">🎓</span> Education
+        </h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="pf-group">
+                <label class="pf-label">Highest Education</label>
+                {% if edit_mode %}{{ form.highest_education }}{% else %}<div class="pf-value {% if not cand_profile.highest_education %}empty{% endif %}">{{ cand_profile.get_highest_education_display|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">University / Institution</label>
+                {% if edit_mode %}{{ form.university }}{% else %}<div class="pf-value {% if not cand_profile.university %}empty{% endif %}">{{ cand_profile.university|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Field of Study</label>
+                {% if edit_mode %}{{ form.field_of_study }}{% else %}<div class="pf-value {% if not cand_profile.field_of_study %}empty{% endif %}">{{ cand_profile.field_of_study|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Graduation Year</label>
+                {% if edit_mode %}{{ form.graduation_year }}{% else %}<div class="pf-value {% if not cand_profile.graduation_year %}empty{% endif %}">{{ cand_profile.graduation_year|default:"Not set" }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Professional Details -->
+    <div class="glass-card no-hover" style="padding: 28px; margin-bottom: 20px; border: 1px solid rgba(16,185,129,0.15);">
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--success, #10b981);">💼</span> Professional Details
+        </h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="pf-group">
+                <label class="pf-label">Current Job Title</label>
+                {% if edit_mode %}{{ form.current_job_title }}{% else %}<div class="pf-value {% if not cand_profile.current_job_title %}empty{% endif %}">{{ cand_profile.current_job_title|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Current Company</label>
+                {% if edit_mode %}{{ form.current_company }}{% else %}<div class="pf-value {% if not cand_profile.current_company %}empty{% endif %}">{{ cand_profile.current_company|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Years of Experience</label>
+                {% if edit_mode %}{{ form.years_experience }}{% else %}<div class="pf-value">{{ cand_profile.years_experience }} years</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Preferred Role</label>
+                {% if edit_mode %}{{ form.preferred_role }}{% else %}<div class="pf-value {% if not cand_profile.preferred_role %}empty{% endif %}">{{ cand_profile.preferred_role|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Expected Salary</label>
+                {% if edit_mode %}{{ form.expected_salary }}{% else %}<div class="pf-value {% if not cand_profile.expected_salary %}empty{% endif %}">{{ cand_profile.expected_salary|default:"Not set" }}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Availability</label>
+                {% if edit_mode %}{{ form.availability }}{% else %}<div class="pf-value {% if not cand_profile.availability %}empty{% endif %}">{{ cand_profile.get_availability_display|default:"Not set" }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Social Links -->
+    <div class="glass-card no-hover" style="padding: 28px; margin-bottom: 20px; border: 1px solid rgba(245,158,11,0.15);">
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--warning, #f59e0b);">🔗</span> Social & Portfolio
+        </h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="pf-group">
+                <label class="pf-label">LinkedIn</label>
+                {% if edit_mode %}{{ form.linkedin_url }}{% else %}<div class="pf-value {% if not cand_profile.linkedin_url %}empty{% endif %}">{% if cand_profile.linkedin_url %}<a href="{{ cand_profile.linkedin_url }}" target="_blank" style="color: #38bdf8; text-decoration: none;">{{ cand_profile.linkedin_url|truncatechars:40 }}</a>{% else %}Not set{% endif %}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">GitHub</label>
+                {% if edit_mode %}{{ form.github_url }}{% else %}<div class="pf-value {% if not cand_profile.github_url %}empty{% endif %}">{% if cand_profile.github_url %}<a href="{{ cand_profile.github_url }}" target="_blank" style="color: #38bdf8; text-decoration: none;">{{ cand_profile.github_url|truncatechars:40 }}</a>{% else %}Not set{% endif %}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Portfolio Website</label>
+                {% if edit_mode %}{{ form.portfolio_url }}{% else %}<div class="pf-value {% if not cand_profile.portfolio_url %}empty{% endif %}">{% if cand_profile.portfolio_url %}<a href="{{ cand_profile.portfolio_url }}" target="_blank" style="color: #38bdf8; text-decoration: none;">{{ cand_profile.portfolio_url|truncatechars:40 }}</a>{% else %}Not set{% endif %}</div>{% endif %}
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Twitter / X</label>
+                {% if edit_mode %}{{ form.twitter_url }}{% else %}<div class="pf-value {% if not cand_profile.twitter_url %}empty{% endif %}">{% if cand_profile.twitter_url %}<a href="{{ cand_profile.twitter_url }}" target="_blank" style="color: #38bdf8; text-decoration: none;">{{ cand_profile.twitter_url|truncatechars:40 }}</a>{% else %}Not set{% endif %}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if edit_mode %}
+    <!-- Save / Cancel -->
+    <div style="display: flex; gap: 16px; justify-content: flex-end; margin-bottom: 32px;">
+        <a href="{% url 'candidate:profile' %}" class="btn-cancel">Cancel</a>
+        <button type="submit" class="btn-save">💾 Save Profile</button>
+    </div>
+    </form>
+    {% endif %}
+
+    <!-- ====== Analytics Grid ====== -->
+    <div style="display: grid; grid-template-columns: 1fr 350px; gap: 32px;">
+        <div>
+            <!-- Application Tracker -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                    <span style="color: var(--primary);">🎯</span> Job Applications
+                </h2>
+                <span style="background: rgba(255, 255, 255, 0.05); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--text-muted);">{{ applications|length }} Active</span>
+            </div>
+            {% if applications %}
+            <div class="glass-card no-hover" style="padding: 0; margin-bottom: 40px; overflow: hidden;">
+                <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                    <thead><tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Job Role</th>
+                        <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Resume</th>
+                        <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Applied</th>
+                        <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Status</th>
+                    </tr></thead>
+                    <tbody>{% for app in applications %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <td style="padding: 16px 20px; font-weight: 500;">{{ app.job_posting.title }}</td>
+                        <td style="padding: 16px 20px; font-size: 0.9rem;"><a href="{% url 'candidate:dashboard' app.candidate_analysis.pk %}" style="color: var(--secondary); text-decoration: none;">{{ app.candidate_analysis.original_filename|truncatechars:20 }}</a></td>
+                        <td style="padding: 16px 20px; font-size: 0.9rem; color: var(--text-muted);">{{ app.applied_at|date:"M j, Y" }}</td>
+                        <td style="padding: 16px 20px;">
+                            {% if app.status == 'shortlisted' %}<span style="background: rgba(34,197,94,0.2); color: #4ade80; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Shortlisted</span>
+                            {% elif app.status == 'rejected' %}<span style="background: rgba(239,68,68,0.2); color: #f87171; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Rejected</span>
+                            {% elif app.status == 'hired' %}<span style="background: rgba(59,130,246,0.2); color: #60a5fa; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Hired!</span>
+                            {% else %}<span style="background: rgba(255,255,255,0.1); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Applied</span>{% endif %}
+                        </td>
+                    </tr>{% endfor %}</tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="glass-card no-hover" style="margin-bottom: 40px; padding: 30px; text-align: center;"><p style="color: var(--text-muted);">You haven't submitted any job applications yet.</p></div>
+            {% endif %}
+
+            <!-- Analyses Grid -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; gap: 10px;"><span style="color: var(--primary);">📄</span> Resume Analyses</h2>
+                <span style="background: rgba(255, 255, 255, 0.05); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--text-muted);">{{ total_analyses }} Total</span>
+            </div>
+            {% if analyses %}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 30px;">
+                {% for analysis in analyses %}
+                <a href="{% url 'candidate:dashboard' analysis.pk %}" class="glass-card" style="padding: 24px; text-decoration: none; display: block; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <p style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary);">{{ analysis.original_filename|truncatechars:24 }}</p>
+                        <span style="padding: 3px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; background: {{ analysis.overall_score|score_badge_bg }}; color: #fff;">{{ analysis.overall_score|floatformat:0 }}</span>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">{% if analysis.matched_job_role %}🎯 {{ analysis.matched_job_role }}{% else %}No role matched{% endif %}</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">{{ analysis.uploaded_at|date:"M j, Y" }}</p>
+                        {% if analysis.job_match_percentage > 0 %}<span style="font-size: 0.8rem; color: var(--secondary);">{{ analysis.job_match_percentage|floatformat:0 }}% match</span>{% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="glass-card no-hover" style="padding: 40px; text-align: center;">
+                <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: 12px;">No analyses yet</p>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">Upload your first resume to get AI-powered insights.</p>
+                <a href="{% url 'candidate:upload' %}" class="btn-primary" style="display: inline-block; padding: 12px 24px; border-radius: 24px; font-weight: 600;">Upload Resume</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div>
+            <div class="glass-card no-hover" style="padding: 24px; margin-bottom: 32px;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 16px;">🧠 Top Skills</h3>
+                {% if top_skills %}
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">{% for skill, count in top_skills %}<span style="padding: 6px 12px; border-radius: 10px; background: rgba(99,102,241,0.12); color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">{{ skill }} <span style="opacity: 0.6; margin-left: 4px; font-size: 0.75rem;">x{{ count }}</span></span>{% endfor %}</div>
+                {% else %}<p style="font-size: 0.9rem; color: var(--text-muted); font-style: italic;">No skills extracted yet.</p>{% endif %}
+            </div>
+            <div class="glass-card no-hover" style="padding: 24px;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 16px;">⚡ Quick Links</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="{% url 'candidate:notifications' %}" style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'"><span style="font-size: 1.2rem;">🔔</span><span style="color: var(--text-secondary); font-weight: 500;">Notifications</span></a>
+                    <a href="{% url 'candidate:recruiter_messages' %}" style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'"><span style="font-size: 1.2rem;">📩</span><span style="color: var(--text-secondary); font-weight: 500;">Recruiter Messages</span></a>
+                    <a href="{% url 'candidate:jobs_list' %}" style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'"><span style="font-size: 1.2rem;">💼</span><span style="color: var(--text-secondary); font-weight: 500;">Browse Jobs</span></a>
+                    <a href="{% url 'candidate:upload' %}" style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'"><span style="font-size: 1.2rem;">📄</span><span style="color: var(--text-secondary); font-weight: 500;">Upload Resume</span></a>
+                </div>
+            </div>
+            <div class="glass-card no-hover" style="padding: 20px; margin-top: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">
+                <p style="color: var(--text-muted); font-size: 0.8rem;">Account: <strong>{{ user.username }}</strong><br>Joined: <strong>{{ user.date_joined|date:"M j, Y" }}</strong><br>Last Login: <strong>{{ user.last_login|date:"M j, Y g:i a" }}</strong></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}Notifications — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width: 800px; margin: 0 auto; padding-bottom: 60px;">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+        <h1 style="font-size: 2rem; font-weight: 800;">🔔 Notifications</h1>
+        <span style="background: rgba(255, 255, 255, 0.05); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; color: var(--text-muted);">
+            {{ unread_count }} unread
+        </span>
+    </div>
+
+    {% if notifications %}
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for n in notifications %}
+        <div class="glass-card no-hover" style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+            {% if not n.is_read %}border-left: 4px solid var(--primary);{% else %}opacity: 0.7;{% endif %}">
+            <div>
+                <p style="font-size: 1rem; font-weight: {% if not n.is_read %}600{% else %}400{% endif %}; margin-bottom: 4px;">
+                    {{ n.message }}
+                </p>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">{{ n.created_at|timesince }} ago</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                {% if n.link %}
+                <a href="{{ n.link }}" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">View</a>
+                {% endif %}
+                {% if not n.is_read %}
+                <form method="POST" action="{% url 'candidate:mark_notification_read' n.pk %}" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; cursor: pointer;">✓ Read</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card no-hover" style="text-align: center; padding: 60px;">
+        <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">🔔</div>
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">All caught up!</h3>
+        <p style="color: var(--text-muted);">You have no notifications yet. They'll appear here when a recruiter schedules an interview or sends you a message.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

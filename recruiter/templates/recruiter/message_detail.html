@@ -1,0 +1,78 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}Message: {{ msg.subject }}{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="padding: 20px; max-width: 900px;">
+
+    <div style="margin-bottom: 24px;">
+        <a href="{% url 'recruiter:messages_hub' %}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">← Back to Messages</a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+        {% if message.tags == 'error' %}background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+        {% else %}background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Header with Actions -->
+    <div class="glass-card" style="padding: 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h1 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 4px;">📩 {{ msg.subject }}</h1>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Sent {{ msg.sent_at|date:"l, M j, Y — g:i A" }}
+            </p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{% url 'recruiter:message_edit' msg.pk %}" class="btn-secondary" style="padding: 8px 20px; font-size: 0.9rem; margin: 0;">✏️ Edit</a>
+            <form method="POST" action="{% url 'recruiter:message_delete' msg.pk %}" style="margin: 0;" onsubmit="return confirm('Delete this message permanently?')">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary" style="padding: 8px 20px; font-size: 0.9rem; margin: 0; color: var(--danger); border-color: rgba(239,68,68,0.3); cursor: pointer;">🗑 Delete</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+        <!-- Candidate Info -->
+        <div class="glass-card" style="padding: 24px;">
+            <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Recipient</h3>
+            <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">{{ msg.job_application.candidate_analysis.candidate_name|default:"Unknown" }}</p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">
+                📧 {{ msg.job_application.candidate_analysis.email|default:"—" }}
+            </p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                🎓 {{ msg.job_application.candidate_analysis.education_level|default:"—" }} · {{ msg.job_application.candidate_analysis.experience_years|floatformat:1 }} yrs exp
+            </p>
+        </div>
+
+        <!-- Job Info -->
+        <div class="glass-card" style="padding: 24px;">
+            <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Job Context</h3>
+            <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">{{ msg.job_application.job_posting.title }}</p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px;">
+                Application Status: <span style="text-transform: uppercase; font-weight: 600;">{{ msg.job_application.status }}</span>
+            </p>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                AI Match (Technical): <strong style="color: var(--primary);">{{ msg.job_application.candidate_analysis.overall_score|floatformat:0 }} / 100</strong>
+            </p>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                ML Match (Hire Prob): <strong style="color: {% if msg.job_application.ml_selection_probability >= 70 %}var(--success){% elif msg.job_application.ml_selection_probability >= 40 %}var(--warning){% else %}var(--danger){% endif %};">{{ msg.job_application.ml_selection_probability|floatformat:0 }}%</strong>
+            </p>
+        </div>
+    </div>
+
+    <!-- Message Body -->
+    <div class="glass-card" style="padding: 24px;">
+        <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Message Body</h3>
+        <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.7; white-space: pre-wrap;">{{ msg.body }}</p>
+    </div>
+
+</div>
+{% endblock %}

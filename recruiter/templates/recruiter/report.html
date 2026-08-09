@@ -1,0 +1,304 @@
+{% extends 'recruiter/base.html' %}
+{% load static %}
+
+{% block title %}Report — {{ a.candidate_name|default:"Resume" }} — Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="report-container animate-in" style="padding: 0 0 20px 0;">
+
+    <!-- Report Header -->
+    <div class="glass-card no-hover" style="text-align:center;margin-bottom:32px; padding: 30px;">
+        <h1 style="font-size:1.8rem;font-weight:800;margin-bottom:8px">
+            📋 Resume Analysis Report (Recruiter View)
+        </h1>
+        <p style="color:var(--text-secondary)">
+            {{ a.candidate_name|default:"Candidate" }}
+            {% if a.email %} · {{ a.email }}{% endif %}
+            {% if a.phone %} · {{ a.phone }}{% endif %}
+        </p>
+        <p style="color:var(--text-muted);font-size:0.8rem;margin-top:4px">
+            Generated on {{ a.uploaded_at|date:"F j, Y" }}
+        </p>
+
+        {% if not shared %}
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a href="{% url 'candidate:download_pdf' a.pk %}" class="btn-primary" style="width:auto;margin-top:0; border-radius: 8px; display: flex; align-items: center; gap: 8px;">📥 Download PDF Report</a>
+            <a href="javascript:history.back()" class="btn-secondary" style="width: auto; border-radius: 8px; display: flex; align-items: center; gap: 8px;">🔙 Back</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 1. Resume Overview -->
+    <div class="report-section glass-card no-hover animate-in delay-1" style="padding: 24px; margin-bottom: 24px;">
+        <h2>📋 1. Resume Overview</h2>
+        <table class="report-table" style="width: 100%; text-align: left; border-spacing: 0 10px;">
+            <tr>
+                <td style="font-weight:600;width:40%">Name</td>
+                <td>{{ a.candidate_name|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Email</td>
+                <td>{{ a.email|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Phone</td>
+                <td>{{ a.phone|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Category</td>
+                <td style="text-transform:capitalize">{{ a.resume_category }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Experience</td>
+                <td>{{ a.experience_years|floatformat:0 }} years</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Education</td>
+                <td>{{ a.education_level|default:"Not detected" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Skills Found</td>
+                <td>{{ a.extracted_skills|length }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Source File</td>
+                <td>{{ a.original_filename }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 2. Skill Breakdown -->
+    <div class="report-section glass-card no-hover animate-in delay-1" style="padding: 24px; margin-bottom: 24px;">
+        <h2>🛠️ 2. Skill Breakdown</h2>
+        <div class="skill-tags" style="margin-bottom:16px; display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for skill in a.extracted_skills %}
+            <span class="skill-tag neutral" style="background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;">{{ skill }}</span>
+            {% empty %}
+            <span style="color:var(--text-muted)">No skills detected</span>
+            {% endfor %}
+        </div>
+        <div class="chart-container" style="height:260px;margin-top:16px">
+            <canvas id="skillRadarChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 3. Experience Analysis -->
+    <div class="report-section glass-card no-hover animate-in delay-2" style="padding: 24px; margin-bottom: 24px;">
+        <h2>💼 3. Experience Analysis</h2>
+        <table class="report-table" style="width: 100%; text-align: left; border-spacing: 0 10px;">
+            <tr>
+                <td style="font-weight:600;width:40%">Total Experience</td>
+                <td>{{ a.experience_years|floatformat:1 }} years</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Experience Score</td>
+                <td>{{ a.experience_score|floatformat:0 }} / 100</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Assessment</td>
+                <td>
+                    {% if a.experience_years >= 10 %}
+                    Senior professional with extensive industry experience.
+                    {% elif a.experience_years >= 5 %}
+                    Mid-senior level with solid professional background.
+                    {% elif a.experience_years >= 3 %}
+                    Mid-level professional building strong expertise.
+                    {% elif a.experience_years >= 1 %}
+                    Early-career professional with foundational experience.
+                    {% else %}
+                    Entry-level / Fresher — focus on projects and internships.
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 4. Job Fit Analysis -->
+    <div class="report-section glass-card no-hover animate-in delay-2" style="padding: 24px; margin-bottom: 24px;">
+        <h2>🎯 4. Job Fit Analysis</h2>
+        {% if a.selected_job_role %}
+        <table class="report-table" style="width: 100%; text-align: left; border-spacing: 0 10px;">
+            <tr>
+                <td style="font-weight:600;width:40%">Target Role</td>
+                <td>{{ a.selected_job_role.title }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600">Match Percentage</td>
+                <td
+                    style="font-weight:700;color:{% if a.job_match_percentage >= 70 %}var(--success){% elif a.job_match_percentage >= 40 %}var(--warning){% else %}var(--danger){% endif %}">
+                    {{ a.job_match_percentage|floatformat:1 }}%</td>
+            </tr>
+        </table>
+        {% if a.matched_skills %}
+        <p style="font-size:0.85rem;font-weight:600;margin:16px 0 8px;color:var(--success)">✓ Matched Skills</p>
+        <div class="skill-tags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for s in a.matched_skills %}
+            <span class="skill-tag matched" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;">{{ s }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p style="color:var(--text-muted)">No job role was selected for comparison.</p>
+        {% endif %}
+    </div>
+
+    <!-- 5. Missing Skills -->
+    <div class="report-section glass-card no-hover animate-in delay-3" style="padding: 24px; margin-bottom: 24px;">
+        <h2>⚠️ 5. Missing Skills</h2>
+        {% if a.missing_skills %}
+        <div class="skill-tags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for s in a.missing_skills %}
+            <span class="skill-tag missing" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;">✗ {{ s }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted)">
+            {% if a.selected_job_role %}
+            No critical skill gaps identified — great match!
+            {% else %}
+            Select a job role to identify skill gaps.
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- 6. Improvement Recommendations -->
+    <div class="report-section glass-card no-hover animate-in delay-3" style="padding: 24px; margin-bottom: 24px;">
+        <h2>💡 6. Improvement Recommendations</h2>
+        <ul class="suggestion-list" style="list-style: none; padding: 0;">
+            {% for s in a.suggestions %}
+            <li class="suggestion-item" style="margin-bottom: 12px; display: flex; gap: 10px;">
+                <span class="suggestion-icon" style="color: var(--primary); font-weight: bold;">{{ forloop.counter }}.</span>
+                <span>{{ s }}</span>
+            </li>
+            {% empty %}
+            <li style="color:var(--text-muted)">No suggestions available.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 7. Resume Optimization Score -->
+    <div class="report-section glass-card no-hover animate-in delay-4" style="padding: 24px; margin-bottom: 24px;">
+        <h2>📊 7. Resume Optimization Score</h2>
+        <div style="text-align:center;margin:20px 0">
+            <div class="score-circle"
+                style="--score-pct:{{ a.overall_score }};--score-color:{{ a.score_color }};margin:0 auto; width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--score-color) calc(var(--score-pct) * 1%), rgba(255,255,255,0.1) 0);">
+                <div style="background: var(--surface); width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                    <span class="score-number" style="font-size: 2rem; font-weight: bold;">{{ a.overall_score|floatformat:0 }}</span>
+                    <span class="score-of" style="font-size: 0.8rem; color: var(--text-muted);">/ 100</span>
+                </div>
+            </div>
+            <span
+                class="score-badge {% if a.overall_score >= 80 %}badge-excellent{% elif a.overall_score >= 60 %}badge-good{% elif a.overall_score >= 40 %}badge-average{% else %}badge-weak{% endif %}"
+                style="margin-top:12px;display:inline-flex; padding: 4px 12px; border-radius: 12px; background: rgba(255,255,255,0.1); font-size: 0.85rem;">
+                {{ a.score_label }}
+            </span>
+        </div>
+        <table class="report-table" style="width: 100%; text-align: left; border-spacing: 0 10px;">
+            <thead>
+                <tr>
+                    <th style="padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">Component</th>
+                    <th style="padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">Weight</th>
+                    <th style="padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding-top: 10px;">Skill Strength</td>
+                    <td style="padding-top: 10px;">40%</td>
+                    <td style="padding-top: 10px;">{{ a.skill_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Experience Relevance</td>
+                    <td>20%</td>
+                    <td>{{ a.experience_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Keyword Optimization</td>
+                    <td>15%</td>
+                    <td>{{ a.keyword_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Education</td>
+                    <td>10%</td>
+                    <td>{{ a.education_score|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td>Completeness</td>
+                    <td>15%</td>
+                    <td>{{ a.completeness_score|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 8. Suggested Career Paths -->
+    <div class="report-section glass-card no-hover animate-in delay-4" style="padding: 24px; margin-bottom: 32px;">
+        <h2>🚀 8. Suggested Career Paths</h2>
+        {% if a.career_paths %}
+        <ul class="career-list" style="list-style: none; padding: 0;">
+            {% for cp in a.career_paths %}
+            <li class="career-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.02); margin-bottom: 8px; border-radius: 8px;">
+                <div>
+                    <div class="career-role" style="font-weight: 600;">{{ cp.role }}</div>
+                    <div class="career-cat" style="font-size: 0.85rem; color: var(--text-muted);">{{ cp.category }}</div>
+                </div>
+                <span class="career-fit" style="font-weight: bold; color: {% if cp.fit >= 60 %}var(--success){% elif cp.fit >= 30 %}var(--warning){% else %}var(--danger){% endif %}">{{ cp.fit }}% fit</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color:var(--text-muted)">Not enough data to suggest career paths.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.skillCategories = {{ skill_categories | safe }};
+    window.marketData = {{ market_json | safe }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Include chart logic directly if needed or keep static script if Recruiter has it
+    document.addEventListener("DOMContentLoaded", function() {
+        if(document.getElementById('skillRadarChart') && window.skillCategories) {
+            const ctx = document.getElementById('skillRadarChart').getContext('2d');
+            const labels = Object.keys(window.skillCategories);
+            const data = Object.values(window.skillCategories);
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Skill Distribution',
+                        data: data,
+                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        pointBackgroundColor: 'rgba(99, 102, 241, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(99, 102, 241, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: { color: 'rgba(255, 255, 255, 0.7)', font: { size: 12 } },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

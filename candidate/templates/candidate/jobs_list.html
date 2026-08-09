@@ -1,0 +1,50 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}Job Board — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width: 1000px; margin: 0 auto; padding-bottom: 60px;">
+    
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 12px;">Active Opportunities</h1>
+        <p style="color: var(--text-muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto;">Browse and apply for the latest roles. Our AI will automatically score your chosen resume against each position.</p>
+    </div>
+
+    {% if jobs %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        {% for job in jobs %}
+        <div class="glass-card" style="padding: 24px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s;">
+            <div>
+                <h2 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">{{ job.title }}</h2>
+                <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 12px;">
+                        🏢 {{ job.role.category|default:"Engineering" }}
+                    </span>
+                    <span style="font-size: 0.85rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 12px;">
+                        🕒 Posted {{ job.created_at|timesince }} ago
+                    </span>
+                </div>
+                <p style="font-size: 0.95rem; color: var(--text-muted); max-width: 700px; line-height: 1.5; margin-bottom: 0;">
+                    {{ job.description|truncatewords:30 }}
+                </p>
+            </div>
+            
+            <div style="margin-left: 20px;">
+                <a href="{% url 'candidate:job_apply' job.pk %}" class="btn-primary" style="padding: 12px 24px; font-weight: 600; font-size: 1rem; border-radius: 30px; white-space: nowrap;">
+                    Apply Now
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card no-hover" style="text-align: center; padding: 60px 20px;">
+        <div style="font-size: 3.5rem; margin-bottom: 16px; opacity: 0.5;">📭</div>
+        <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 8px;">No Open Roles</h3>
+        <p style="color: var(--text-muted); max-width: 400px; margin-inline: auto;">Check back later for new opportunities from our recruitment team.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}{% if edit_mode %}Edit Message{% else %}Send Message{% endif %}{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="padding: 0 0 20px 0; max-width: 700px;">
+
+    <div style="margin-bottom: 24px;">
+        {% if edit_mode %}
+        <a href="{% url 'recruiter:message_detail' msg.pk %}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Back to Message</a>
+        {% else %}
+        <a href="{% url 'recruiter:job_detail' application.job_posting.pk %}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Back to {{ application.job_posting.title }}</a>
+        {% endif %}
+    </div>
+
+    <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">📩 {% if edit_mode %}Edit Message{% else %}Message Candidate{% endif %}</h1>
+    <p style="color: var(--text-muted); margin-bottom: 32px;">
+        {% if edit_mode %}
+        Editing message to <strong style="color: white;">{{ application.candidate_analysis.candidate_name|default:"Unknown" }}</strong>
+        — <strong style="color: var(--primary);">{{ application.job_posting.title }}</strong>
+        {% else %}
+        Sending to <strong style="color: white;">{{ application.candidate_analysis.candidate_name|default:"Unknown" }}</strong>
+        — <span style="color: var(--text-muted);">{{ application.candidate_analysis.email|default:"No email" }}</span>
+        {% endif %}
+    </p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+                {% if message.tags == 'error' %}background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);{% endif %}
+                {% if message.tags == 'success' %}background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);{% endif %}
+            ">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="glass-card no-hover" style="padding: 32px;">
+        <form method="POST">
+            {% csrf_token %}
+
+            <div style="margin-bottom: 24px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">Subject</label>
+                <input type="text" name="subject" placeholder="e.g. Interview Invitation" required
+                    {% if edit_mode and msg %}value="{{ msg.subject }}"{% endif %}
+                    style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 1rem;">
+            </div>
+
+            <div style="margin-bottom: 32px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">Message</label>
+                <textarea name="body" rows="6" placeholder="Write your message to the candidate..." required
+                    style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 1rem; resize: vertical;">{% if edit_mode and msg %}{{ msg.body }}{% endif %}</textarea>
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button type="submit" class="btn-primary" style="flex: 1; padding: 14px; font-size: 1.1rem; border-radius: 8px;">
+                    {% if edit_mode %}💾 Save Changes{% else %}Send Message{% endif %}
+                </button>
+                {% if edit_mode %}
+                <a href="{% url 'recruiter:message_detail' msg.pk %}" class="btn-secondary" style="padding: 14px 24px; font-size: 1.1rem; border-radius: 8px; text-align: center;">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

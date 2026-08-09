@@ -1,0 +1,143 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Recruiter Portal{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'candidate/img/favicon.png' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.2/css/dataTables.dataTables.min.css" />
+    <script src="https://cdn.datatables.net/2.0.2/js/dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'candidate/css/style.css' %}">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-glass);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            z-index: 100;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .sidebar-brand {
+            padding: 0 24px 24px 24px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-glass);
+            margin-bottom: 24px;
+        }
+
+        .sidebar-item {
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            border-right: 4px solid transparent;
+        }
+        .sidebar-item:hover, .sidebar-item.active {
+            color: var(--text-primary);
+            background: var(--bg-glass);
+            border-right-color: var(--accent-primary);
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            padding: 0 !important;
+        }
+
+        .content-area {
+            padding: 24px 32px 32px 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* DataTables theme-aware */
+        div.dt-container { color: var(--text-secondary); }
+        div.dt-container select, div.dt-container input {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+            padding: 6px;
+            border-radius: 4px;
+        }
+        table.dataTable { border-bottom: 1px solid var(--border-glass) !important; }
+        table.dataTable thead th { border-bottom: 1px solid var(--border-glass) !important; color: var(--text-primary); }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="sidebar-brand" style="border-bottom: 1px solid var(--border-glass); padding: 0 24px 32px 24px; margin-bottom: 24px;">
+            <a href="{% url 'recruiter:ats_dashboard' %}" style="text-decoration: none; display: flex; align-items: center; gap: 12px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--secondary)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                    <span style="font-size: 1.4rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">🎯</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 1.25rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1.1;">Recruiter<span style="color: var(--accent-primary);">Pro</span></span>
+                    <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px;">ATS Platform</span>
+                </div>
+            </a>
+        </div>
+
+        <a href="{% url 'recruiter:ats_dashboard' %}" class="sidebar-item {% if request.resolver_match.url_name == 'ats_dashboard' %}active{% endif %}">
+            <span>📋</span> Jobs & ATS
+        </a>
+        <a href="{% url 'recruiter:ceo_analytics' %}" class="sidebar-item {% if request.resolver_match.url_name == 'ceo_analytics' %}active{% endif %}">
+            <span>📈</span> Executive Analytics
+        </a>
+        <a href="{% url 'recruiter:interview_calendar' %}" class="sidebar-item {% if request.resolver_match.url_name == 'interview_calendar' %}active{% endif %}">
+            <span>📅</span> Interviews
+        </a>
+        <a href="{% url 'recruiter:compare_candidates' %}" class="sidebar-item {% if request.resolver_match.url_name == 'compare_candidates' %}active{% endif %}">
+            <span>⚖️</span> Compare
+        </a>
+        <a href="{% url 'recruiter:messages_hub' %}" class="sidebar-item {% if request.resolver_match.url_name == 'messages_hub' %}active{% endif %}">
+            <span>📩</span> Messages
+        </a>
+        <a href="{% url 'recruiter:profile' %}" class="sidebar-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+            <span>👤</span> My Profile
+        </a>
+        <div style="flex-grow: 1;"></div>
+
+        <a href="{% url 'recruiter:logout' %}" class="sidebar-item" style="color: var(--danger); border-top: 1px solid var(--border-glass);">
+            <span>🚪</span> Logout
+        </a>
+    </nav>
+
+    <main class="main-content">
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script>
+        $(document).ready(function() {
+            $('.dt-table').DataTable({
+                pageLength: 25,
+                language: { search: "", searchPlaceholder: "Search candidates..." }
+            });
+        });
+    </script>
+</body>
+</html>

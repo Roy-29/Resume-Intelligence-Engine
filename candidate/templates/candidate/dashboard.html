@@ -1,0 +1,265 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+{% load candidate_tags %}
+
+{% block title %}Dashboard — {{ a.candidate_name|default:"Resume" }} — AI Resume Analyzer{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="dashboard-header animate-in">
+    <h1>👋 Hello, <span class="name">{{ a.candidate_name|default:"Candidate" }}</span></h1>
+    <div class="header-actions">
+        <a href="{% url 'candidate:report' a.pk %}" class="btn-secondary">📋 Full Report</a>
+        <a href="{% url 'candidate:download_pdf' a.pk %}" class="btn-secondary">📥 PDF</a>
+        {% if a.share_token %}
+        <a href="{% url 'candidate:share_report' a.share_token %}" class="btn-secondary" title="Shareable link">🔗 Share</a>
+        {% endif %}
+        <a href="{% url 'candidate:jobs_list' %}" class="btn-secondary">💼 Apply to Jobs</a>
+        <a href="{% url 'candidate:upload' %}" class="btn-secondary">🔄 New Upload</a>
+    </div>
+</div>
+
+<!-- Score Hero -->
+<div class="glass-card no-hover score-hero animate-in delay-1">
+    <div class="score-circle-wrapper">
+        <div class="score-circle" style="--score-pct: {{ a.overall_score }}; --score-color: {{ a.score_color }}">
+            <span class="score-number">{{ a.overall_score|floatformat:0 }}</span>
+            <span class="score-of">/ 100</span>
+        </div>
+        <span
+            class="score-badge {% if a.overall_score >= 80 %}badge-excellent{% elif a.overall_score >= 60 %}badge-good{% elif a.overall_score >= 40 %}badge-average{% else %}badge-weak{% endif %}">
+            {% if a.overall_score >= 80 %}🏆{% elif a.overall_score >= 60 %}✅{% elif a.overall_score >= 40 %}⚠️{% else
+            %}🔻{% endif %}
+            {{ a.score_label }}
+        </span>
+    </div>
+    <div class="score-breakdown">
+        <div class="score-item">
+            <span class="score-item-label">Skill Strength (40%)</span>
+            <div class="score-bar-track">
+                <div class="score-bar-fill {% if a.skill_score >= 70 %}green{% elif a.skill_score >= 40 %}yellow{% else %}red{% endif %}"
+                    data-width="{{ a.skill_score }}" style="width:0%"></div>
+            </div>
+            <span class="score-item-value">{{ a.skill_score|floatformat:0 }}</span>
+        </div>
+        <div class="score-item">
+            <span class="score-item-label">Experience (20%)</span>
+            <div class="score-bar-track">
+                <div class="score-bar-fill {% if a.experience_score >= 70 %}green{% elif a.experience_score >= 40 %}yellow{% else %}red{% endif %}"
+                    data-width="{{ a.experience_score }}" style="width:0%"></div>
+            </div>
+            <span class="score-item-value">{{ a.experience_score|floatformat:0 }}</span>
+        </div>
+        <div class="score-item">
+            <span class="score-item-label">Keywords (15%)</span>
+            <div class="score-bar-track">
+                <div class="score-bar-fill {% if a.keyword_score >= 70 %}green{% elif a.keyword_score >= 40 %}yellow{% else %}red{% endif %}"
+                    data-width="{{ a.keyword_score }}" style="width:0%"></div>
+            </div>
+            <span class="score-item-value">{{ a.keyword_score|floatformat:0 }}</span>
+        </div>
+        <div class="score-item">
+            <span class="score-item-label">Education (10%)</span>
+            <div class="score-bar-track">
+                <div class="score-bar-fill {% if a.education_score >= 70 %}green{% elif a.education_score >= 40 %}yellow{% else %}red{% endif %}"
+                    data-width="{{ a.education_score }}" style="width:0%"></div>
+            </div>
+            <span class="score-item-value">{{ a.education_score|floatformat:0 }}</span>
+        </div>
+        <div class="score-item">
+            <span class="score-item-label">Completeness (15%)</span>
+            <div class="score-bar-track">
+                <div class="score-bar-fill {% if a.completeness_score >= 70 %}green{% elif a.completeness_score >= 40 %}yellow{% else %}red{% endif %}"
+                    data-width="{{ a.completeness_score }}" style="width:0%"></div>
+            </div>
+            <span class="score-item-value">{{ a.completeness_score|floatformat:0 }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row animate-in delay-2">
+    <div class="glass-card stat-card">
+        <span class="stat-icon">🛠️</span>
+        <div class="stat-value">{{ a.extracted_skills|length }}</div>
+        <div class="stat-label">Skills Found</div>
+    </div>
+    <div class="glass-card stat-card">
+        <span class="stat-icon">💼</span>
+        <div class="stat-value">{{ a.experience_years|floatformat:0 }} yrs</div>
+        <div class="stat-label">Experience</div>
+    </div>
+    <div class="glass-card stat-card">
+        <span class="stat-icon">🎓</span>
+        <div class="stat-value">{{ a.education_level|default:"N/A" }}</div>
+        <div class="stat-label">Education</div>
+    </div>
+    <div class="glass-card stat-card">
+        <span class="stat-icon">📂</span>
+        <div class="stat-value" style="text-transform:capitalize">{{ a.resume_category }}</div>
+        <div class="stat-label">Category</div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2 animate-in delay-3">
+    <div class="glass-card no-hover">
+        <div class="section-title"><span class="ico">📡</span> Skill Radar</div>
+        <div class="chart-container" style="height:280px">
+            <canvas id="skillRadarChart"></canvas>
+        </div>
+    </div>
+    <div class="glass-card no-hover">
+        <div class="section-title"><span class="ico">🍩</span> Skill Distribution</div>
+        <div class="chart-container" style="height:280px">
+            <canvas id="skillPieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Skills Tags -->
+<div class="glass-card no-hover animate-in delay-3" style="margin-bottom:32px">
+    <div class="section-title"><span class="ico">🏷️</span> Extracted Skills</div>
+    <div class="skill-tags">
+        {% for skill in a.extracted_skills %}
+        <span class="skill-tag neutral">{{ skill }}</span>
+        {% empty %}
+        <span style="color:var(--text-muted)">No skills detected</span>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Job Match + Suggestions -->
+<div class="grid-2 animate-in delay-4">
+    <!-- Job Matching -->
+    <div class="glass-card no-hover">
+        <div class="section-title"><span class="ico">🎯</span> Job Match</div>
+
+        {% if a.selected_job_role %}
+        <div style="text-align:center; margin-bottom:16px;">
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px">
+                vs <strong style="color:var(--text-primary)">{{ a.selected_job_role.title }}</strong>
+            </p>
+            <div class="match-circle" style="--match-pct: {{ a.job_match_percentage }}">
+                <span class="match-number">{{ a.job_match_percentage|floatformat:0 }}%</span>
+                <span class="match-pct">match</span>
+            </div>
+        </div>
+
+        {% if a.matched_skills %}
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px">MATCHED</p>
+        <div class="skill-tags" style="margin-bottom:12px">
+            {% for s in a.matched_skills %}
+            <span class="skill-tag matched">✓ {{ s }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if a.missing_skills %}
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px">MISSING</p>
+        <div class="skill-tags">
+            {% for s in a.missing_skills %}
+            <span class="skill-tag missing">✗ {{ s }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p style="color:var(--text-muted);font-size:0.9rem">No job role selected. Choose one below to match.</p>
+        {% endif %}
+
+        <form action="{% url 'candidate:rematch_job' a.pk %}" method="post" class="rematch-form"
+            style="margin-top:20px">
+            {% csrf_token %}
+            <div class="form-group">
+                <select name="job_role" class="form-select" required>
+                    <option value="">Select role…</option>
+                    {% for role in job_roles %}
+                    <option value="{{ role }}" {% if a.selected_job_role and a.selected_job_role.title == role %}selected{% endif %}>{{ role }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Match</button>
+        </form>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="glass-card no-hover">
+        <div class="section-title"><span class="ico">💡</span> AI Suggestions</div>
+        <ul class="suggestion-list">
+            {% for s in a.suggestions %}
+            <li class="suggestion-item">
+                <span class="suggestion-icon">🔹</span>
+                <span>{{ s }}</span>
+            </li>
+            {% empty %}
+            <li style="color:var(--text-muted)">Select a job role to receive personalised suggestions.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Market Insights -->
+{% if market %}
+<div class="glass-card no-hover animate-in delay-5" style="margin-bottom:32px">
+    <div class="section-title"><span class="ico">📈</span> Market Insights — {{ a.selected_job_role.title }}</div>
+    <div class="grid-3" style="margin-bottom:0">
+        <div class="glass-card stat-card" style="padding:16px">
+            <span class="stat-icon">💰</span>
+            <div class="stat-value" style="font-size:1rem">{{ market.avg_salary }}</div>
+            <div class="stat-label">Average Salary</div>
+        </div>
+        <div class="glass-card stat-card" style="padding:16px">
+            <span class="stat-icon">📊</span>
+            <div class="stat-value" style="font-size:1rem;color:var(--success)">{{ market.demand_growth }}</div>
+            <div class="stat-label">Demand Growth</div>
+        </div>
+        <div class="glass-card stat-card" style="padding:16px">
+            <span class="stat-icon">🔥</span>
+            <div class="stat-value" style="font-size:0.9rem">{{ market.top_skills|join:", " }}</div>
+            <div class="stat-label">Top Skills</div>
+        </div>
+    </div>
+    <div class="grid-2" style="margin-top:24px;margin-bottom:0">
+        <div>
+            <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px">Hiring Trend (12-month)</p>
+            <div class="chart-container" style="height:220px">
+                <canvas id="hiringTrendChart"></canvas>
+            </div>
+        </div>
+        <div>
+            <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px">Top Skill Demand</p>
+            <div class="chart-container" style="height:220px">
+                <canvas id="skillDemandChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Career Paths -->
+{% if a.career_paths %}
+<div class="glass-card no-hover animate-in delay-5" style="margin-bottom:32px">
+    <div class="section-title"><span class="ico">🚀</span> Suggested Career Paths</div>
+    <ul class="career-list">
+        {% for cp in a.career_paths %}
+        <li class="career-item">
+            <div>
+                <div class="career-role">{{ cp.role }}</div>
+                <div class="career-cat">{{ cp.category }}</div>
+            </div>
+            <span class="career-fit {% if cp.fit >= 60 %}fit-high{% elif cp.fit >= 30 %}fit-mid{% else %}fit-low{% endif %}">{{ cp.fit }}% fit</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.skillCategories = {{ skill_categories | safe }};
+    window.marketData = {{ market_json | safe }};
+</script>
+<script src="{% static 'candidate/js/charts.js' %}"></script>
+{% endblock %}

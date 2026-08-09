@@ -1,0 +1,126 @@
+{% extends 'recruiter/base.html' %}
+
+{% block title %}Edit Job Post{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="padding: 0 0 20px 0; max-width: 860px; margin: 0 auto;">
+
+    <div style="margin-bottom: 24px;">
+        <a href="{% url 'recruiter:ats_dashboard' %}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">← Back to ATS Dashboard</a>
+    </div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 36px;">
+        <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 8px;">✏️ Edit Job Post</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Update the requirements and details for this role.</p>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+        {% if message.tags == 'error' %}background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+        {% else %}background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" action="{% url 'recruiter:job_edit' job.pk %}">
+        {% csrf_token %}
+
+        <!-- Section 1: Basic Info -->
+        <div class="glass-card" style="padding: 32px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+                <span style="font-size: 1.4rem;">📋</span>
+                <div>
+                    <h2 style="font-size: 1.15rem; font-weight: 700;">Job Information</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Basic details about the open position</p>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- Job Title -->
+                <div>
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">Job Title <span style="color: var(--danger);">*</span></label>
+                    <input type="text" name="title" placeholder="e.g. Senior Machine Learning Engineer" required
+                        {% if form.title.value %}value="{{ form.title.value }}"{% endif %}
+                        style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 0.95rem; transition: border-color 0.3s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                    {% if form.title.errors %}
+                    <div style="color: var(--danger); font-size: 0.8rem; margin-top: 4px;">{{ form.title.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- AI Category -->
+                <div>
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">AI Matching Category <span style="color: var(--danger);">*</span></label>
+                    <select name="role" required
+                        style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 0.95rem; transition: border-color 0.3s; cursor: pointer;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                        <option value="" style="background: #1a1a2e;">— Select an AI Job Category —</option>
+                        {% for choice in form.role.field.queryset %}
+                        <option value="{{ choice.pk }}" style="background: #1a1a2e;" {% if form.role.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                        {% endfor %}
+                    </select>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">🧠 This binds the job to specific AI skill extraction weights for candidate ranking.</p>
+                    {% if form.role.errors %}
+                    <div style="color: var(--danger); font-size: 0.8rem; margin-top: 4px;">{{ form.role.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Description -->
+        <div class="glass-card" style="padding: 32px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+                <span style="font-size: 1.4rem;">📝</span>
+                <div>
+                    <h2 style="font-size: 1.15rem; font-weight: 700;">Job Description</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Detailed requirements, responsibilities, and qualifications</p>
+                </div>
+            </div>
+
+            <textarea name="description" rows="10" required
+                placeholder="Paste the complete job description here..."
+                style="width: 100%; padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 0.95rem; resize: vertical; line-height: 1.6; font-family: 'Inter', sans-serif; transition: border-color 0.3s;"
+                onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+            >{% if form.description.value %}{{ form.description.value }}{% endif %}</textarea>
+            {% if form.description.errors %}
+            <div style="color: var(--danger); font-size: 0.8rem; margin-top: 4px;">{{ form.description.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Section 3: Publish Settings -->
+        <div class="glass-card" style="padding: 32px; margin-bottom: 32px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+                <span style="font-size: 1.4rem;">⚙️</span>
+                <div>
+                    <h2 style="font-size: 1.15rem; font-weight: 700;">Publish Settings</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Control if this job is active</p>
+                </div>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 14px; cursor: pointer; padding: 16px 20px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); transition: all 0.3s;"
+                onmouseover="this.style.borderColor='rgba(255,255,255,0.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+                <div style="position: relative;">
+                    <input type="checkbox" name="is_active" id="id_is_active" {% if form.is_active.value %}checked{% endif %}
+                        style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
+                </div>
+                <div>
+                    <p style="font-weight: 600; font-size: 0.95rem; margin-bottom: 2px;">Job is Active</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">When active, the job is visible to candidates.</p>
+                </div>
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="{% url 'recruiter:ats_dashboard' %}" class="btn-secondary" style="padding: 12px 28px; font-size: 1rem; border-radius: 8px;">Cancel</a>
+            <button type="submit" class="btn-primary" style="padding: 14px 40px; font-size: 1.05rem; font-weight: 700; border-radius: 8px; margin: 0;">
+                💾 Save Changes
+            </button>
+        </div>
+    </form>
+
+</div>
+{% endblock %}

@@ -1,0 +1,408 @@
+{% extends 'candidate/base.html' %}
+{% load static %}
+
+{% block title %}GitHub Profile Analyzer — AI Resume Analyzer{% endblock %}
+
+{% block extra_head %}
+<style>
+  .gh-wrap { max-width: 960px; margin: 0 auto; }
+  .page-header { margin-bottom: 2rem; }
+  .page-header h1 {
+    font-size: 2.2rem; font-weight: 800;
+    background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 0.3rem;
+  }
+  .page-header p { color: var(--text-secondary); font-size: 0.95rem; }
+
+  .panel {
+    background: var(--bg-card); backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-lg);
+    padding: 1.5rem; margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm); transition: var(--transition);
+  }
+  .panel-title {
+    font-size: 1rem; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;
+    padding-bottom: 0.7rem; border-bottom: 1px solid var(--border-glass);
+  }
+
+  /* Input form */
+  .input-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.8rem; align-items: end; }
+  @media(max-width:700px){ .input-row { grid-template-columns: 1fr; } }
+  .field-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .gh-input {
+    width: 100%; padding: 0.7rem 1rem;
+    background: var(--bg-secondary); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md); color: var(--text-primary);
+    font-size: 0.9rem; font-family: var(--font); transition: var(--transition);
+  }
+  .gh-input:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .btn-analyze {
+    padding: 0.7rem 1.8rem;
+    background: var(--accent-gradient); border: none;
+    border-radius: var(--radius-md); color: #fff;
+    font-weight: 700; font-size: 0.9rem; cursor: pointer;
+    white-space: nowrap; transition: all 0.2s; font-family: var(--font);
+    box-shadow: 0 2px 12px rgba(99,102,241,0.2);
+  }
+  .btn-analyze:hover { box-shadow: 0 4px 20px rgba(99,102,241,0.35); transform: translateY(-1px); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+  /* GitHub how-it-works note */
+  .gh-note {
+    padding: 0.8rem 1rem; margin-top: 1rem;
+    background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.12);
+    border-radius: var(--radius-md); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;
+  }
+  .gh-note strong { color: var(--accent-primary); }
+
+  /* Results */
+  #results { display: none; }
+  .profile-card { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 1.5rem; }
+  .avatar {
+    width: 84px; height: 84px; border-radius: 50%;
+    border: 3px solid rgba(99,102,241,0.35);
+    box-shadow: 0 0 20px rgba(99,102,241,0.15);
+    transition: transform 0.3s;
+  }
+  .avatar:hover { transform: scale(1.08); }
+  .profile-info h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); }
+  .profile-info p { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; }
+  .profile-info a { color: var(--accent-primary); font-size: 0.82rem; font-weight: 500; text-decoration: none; }
+  .profile-info a:hover { text-decoration: underline; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin-bottom: 1.5rem; }
+  @media(max-width:600px){ .stats-grid { grid-template-columns: repeat(2,1fr); } }
+  .stat-card-gh {
+    background: var(--bg-glass); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md); padding: 1rem; text-align: center;
+    transition: var(--transition);
+  }
+  .stat-card-gh:hover { border-color: var(--border-glow); transform: translateY(-2px); box-shadow: var(--shadow-glow); }
+  .stat-num { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); }
+  .stat-num.gradient { background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-label-gh { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* Activity bar */
+  .activity-wrap { margin-bottom: 1.5rem; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem; font-weight: 500; }
+  .bar { height: 8px; background: var(--bg-glass); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-glass); }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+  .bar-fill.purple { background: var(--accent-gradient); }
+
+  /* Languages */
+  .lang-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .lang-row { display: grid; grid-template-columns: 100px 1fr 44px; gap: 0.6rem; align-items: center; font-size: 0.85rem; }
+  .lang-name { color: var(--text-primary); font-weight: 600; }
+  .lang-pct { color: var(--text-secondary); text-align: right; font-weight: 600; }
+
+  /* Chips */
+  .chip-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .chip {
+    padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+    border: 1px solid; transition: all 0.2s;
+  }
+  .chip:hover { transform: translateY(-1px); }
+  .chip.matched { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.25); color: var(--success); }
+  .chip.missing { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.2); color: var(--danger); }
+  .chip.extracted { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2); color: var(--accent-primary); }
+
+  /* Repos */
+  .repo-card {
+    padding: 1rem 1.2rem; background: var(--bg-glass);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-md);
+    margin-bottom: 0.7rem; transition: var(--transition);
+  }
+  .repo-card:hover { border-color: var(--border-glow); transform: translateX(4px); box-shadow: var(--shadow-glow); }
+  .repo-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .repo-name { font-weight: 700; color: var(--accent-primary); font-size: 0.92rem; }
+  .repo-name a { color: inherit; text-decoration: none; }
+  .repo-name a:hover { text-decoration: underline; }
+  .repo-stars { font-size: 0.8rem; color: var(--warning); font-weight: 600; }
+  .repo-desc { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.5; }
+  .repo-topics { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+  .repo-topic { font-size: 0.68rem; padding: 2px 8px; border-radius: 12px; background: rgba(99,102,241,0.08); color: var(--accent-primary); border: 1px solid rgba(99,102,241,0.15); }
+  .repo-lang { font-size: 0.75rem; color: var(--accent-primary); margin-top: 0.35rem; font-weight: 500; }
+
+  /* Import button */
+  .btn-import {
+    padding: 0.65rem 1.4rem; width: 100%;
+    background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25);
+    border-radius: var(--radius-md); color: var(--success);
+    font-weight: 700; font-size: 0.88rem; cursor: pointer;
+    transition: var(--transition); font-family: var(--font);
+  }
+  .btn-import:hover { background: rgba(16,185,129,0.18); }
+
+  /* Error & spinner */
+  .error-box {
+    padding: 0.9rem 1rem; background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-md);
+    color: var(--danger); font-size: 0.88rem; display: none; margin-bottom: 1rem;
+  }
+  .error-box.show { display: block; animation: fadeInUp 0.3s ease; }
+  .spinner-sm { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 0.4rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media(max-width:700px){ .two-col { grid-template-columns: 1fr; } }
+
+  /* Feedback Cards */
+  .feedback-box {
+    padding: 1rem 1.2rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 0.8rem;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .feedback-box.success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; }
+  .feedback-box.warning { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); color: #f59e0b; }
+  .feedback-box.danger { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; }
+  .feedback-icon { font-size: 1.1rem; }
+  .fb-text { color: var(--text-primary); }
+  
+  .insight-list { list-style: none; padding: 0; margin: 0; }
+  .insight-list li { margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+  .insight-list li::before { content: '✨'; font-size: 0.8rem; }
+
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gh-wrap">
+  <div class="page-header animate-in">
+    <h1>🐙 GitHub Profile Analyzer</h1>
+    <p>Extract technical skills, project highlights, and activity scores directly from any public GitHub profile.</p>
+  </div>
+
+  <!-- Input -->
+  <div class="panel animate-in delay-1">
+    <div class="panel-title">🔍 Analyze a GitHub Profile</div>
+    <div class="input-row">
+      <div>
+        <div class="field-label">GitHub Username</div>
+        <input type="text" id="gh-username" class="gh-input" placeholder="e.g. torvalds, antirez, gvanrossum" />
+      </div>
+      <div>
+        <div class="field-label">Compare Against Role (Optional)</div>
+        <select id="gh-role" class="gh-input">
+          <option value="">— Skip role match —</option>
+          {% for role in job_roles %}
+            <option value="{{ role }}">{{ role }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <div class="field-label" style="visibility:hidden">.</div>
+        <button class="btn-analyze" id="btn-analyze" onclick="analyzeGitHub()">🚀 Analyze</button>
+      </div>
+    </div>
+    <div class="gh-note">
+      🔗 <strong>How it works:</strong> We use the public GitHub REST API to fetch profile data, repository languages, and project metadata — no API key or login required. Rate limit: 60 requests/hour.
+    </div>
+  </div>
+
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Results -->
+  <div id="results">
+    <!-- Profile Header -->
+    <div class="panel animate-in">
+      <div class="profile-card">
+        <img id="r-avatar" src="" alt="Avatar" class="avatar">
+        <div class="profile-info">
+          <h2 id="r-name"></h2>
+          <p id="r-bio"></p>
+          <p id="r-meta" style="font-size:0.78rem;margin-top:0.2rem;"></p>
+          <a id="r-url" href="#" target="_blank">View on GitHub ↗</a>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card-gh"><div class="stat-num" id="r-repos">—</div><div class="stat-label-gh">Public Repos</div></div>
+        <div class="stat-card-gh"><div class="stat-num" id="r-stars">—</div><div class="stat-label-gh">Total Stars</div></div>
+        <div class="stat-card-gh"><div class="stat-num" id="r-followers">—</div><div class="stat-label-gh">Followers</div></div>
+        <div class="stat-card-gh"><div class="stat-num gradient" id="r-activity">—</div><div class="stat-label-gh">Activity Score</div></div>
+      </div>
+
+      <div class="activity-wrap">
+        <div class="bar-label"><span>GitHub Activity Score</span><span id="r-activity-label">—/100</span></div>
+        <div class="bar"><div class="bar-fill purple" id="r-activity-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- AI Feedback & Scoring -->
+    <div class="panel animate-in delay-1" id="feedback-panel" style="display: none;">
+      <div class="panel-title">🧠 AI Feedback & Scoring</div>
+      <div class="two-col" style="margin-top: 1rem;">
+        <div>
+          <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:var(--text-secondary); letter-spacing:1px; margin-bottom: 0.5rem;">Overall Profile Score</div>
+          <div style="display:flex; align-items:flex-end; gap:8px; margin-bottom: 1.5rem;">
+            <span id="ai-overall-score" style="font-size: 3rem; font-weight: 800; line-height: 1; color: var(--accent-primary);">0</span>
+            <span style="font-size: 1rem; font-weight: 600; color: var(--text-muted); padding-bottom: 6px;">/ 100</span>
+          </div>
+          <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:var(--text-secondary); letter-spacing:1px; margin-bottom: 0.5rem;">Strengths</div>
+          <ul class="insight-list" id="ai-highlights"></ul>
+        </div>
+        <div>
+          <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:var(--text-secondary); letter-spacing:1px; margin-bottom: 0.5rem;">Actionable Feedback</div>
+          <div id="ai-actionable-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Languages -->
+      <div class="panel animate-in delay-1">
+        <div class="panel-title">📊 Top Languages</div>
+        <div class="lang-list" id="r-langs"></div>
+      </div>
+
+      <!-- Skills -->
+      <div class="panel animate-in delay-2">
+        <div class="panel-title">🛠 Extracted Skills</div>
+        <div class="chip-wrap" id="r-skills" style="margin-bottom:1rem;"></div>
+        <div id="role-match-section" style="display:none;">
+          <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.04em;">Role Match</div>
+          <div class="bar-label"><span id="role-match-label">—</span><span id="role-match-pct">—%</span></div>
+          <div class="bar" style="margin-bottom:0.8rem;"><div class="bar-fill purple" id="role-match-bar" style="width:0%;"></div></div>
+          <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.4rem;font-weight:600;">✅ Matched</div>
+          <div class="chip-wrap" id="r-matched" style="margin-bottom:0.7rem;"></div>
+          <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.4rem;font-weight:600;">❌ Missing</div>
+          <div class="chip-wrap" id="r-missing"></div>
+        </div>
+        <button class="btn-import" id="btn-import" onclick="importSkills()" style="margin-top:1rem;display:none;">⬇️ Import Skills to Profile</button>
+      </div>
+    </div>
+
+    <!-- Top Repos -->
+    <div class="panel animate-in delay-3">
+      <div class="panel-title">🚀 Top Repositories</div>
+      <div id="r-repos-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+let _extractedSkills = [];
+
+async function analyzeGitHub() {
+  const username = document.getElementById('gh-username').value.trim();
+  const role = document.getElementById('gh-role').value;
+  const errBox = document.getElementById('error-box');
+  const btn = document.getElementById('btn-analyze');
+  const results = document.getElementById('results');
+
+  errBox.classList.remove('show'); results.style.display = 'none';
+  if (!username) { showError('Please enter a GitHub username.'); return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span> Analyzing…';
+
+  try {
+    const res = await fetch("{% url 'candidate:fetch_github_data' %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ username, role }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) { showError(data.error || 'Unknown error.'); return; }
+    renderResults(data);
+  } catch (e) { showError('Could not connect. Check your internet connection.'); }
+  finally { btn.disabled = false; btn.innerHTML = '🚀 Analyze'; }
+}
+
+function renderResults(d) {
+  document.getElementById('r-avatar').src = d.avatar_url;
+  document.getElementById('r-name').textContent = d.name || d.username;
+  document.getElementById('r-bio').textContent = d.bio;
+  document.getElementById('r-meta').textContent = [d.location, d.company, d.blog].filter(Boolean).join('  •  ');
+  const url = document.getElementById('r-url'); url.href = d.profile_url; url.textContent = `@${d.username} ↗`;
+
+  document.getElementById('r-repos').textContent = d.public_repos;
+  document.getElementById('r-stars').textContent = d.total_stars;
+  document.getElementById('r-followers').textContent = d.followers;
+  document.getElementById('r-activity').textContent = d.activity_score + '/100';
+  document.getElementById('r-activity-label').textContent = d.activity_score + '/100';
+  setTimeout(() => document.getElementById('r-activity-bar').style.width = d.activity_score + '%', 100);
+
+  document.getElementById('r-langs').innerHTML = d.languages.map(l => `
+    <div class="lang-row">
+      <span class="lang-name">${esc(l.name)}</span>
+      <div class="bar"><div class="bar-fill purple" style="width:${l.percent}%"></div></div>
+      <span class="lang-pct">${l.percent}%</span>
+    </div>`).join('') || '<span style="color:var(--text-muted);font-size:0.85rem;">No languages detected.</span>';
+
+  _extractedSkills = d.extracted_skills || [];
+  document.getElementById('r-skills').innerHTML = _extractedSkills.map(s => `<span class="chip extracted">${esc(s)}</span>`).join('') || '<span style="color:var(--text-muted);">No skills extracted.</span>';
+
+  const rm = d.role_match;
+  const rmSec = document.getElementById('role-match-section');
+  if (rm) {
+    rmSec.style.display = 'block';
+    document.getElementById('role-match-label').textContent = rm.role;
+    document.getElementById('role-match-pct').textContent = rm.percent + '%';
+    setTimeout(() => document.getElementById('role-match-bar').style.width = rm.percent + '%', 100);
+    document.getElementById('r-matched').innerHTML = rm.matched.map(s => `<span class="chip matched">${esc(s)}</span>`).join('') || '<span style="color:var(--text-muted);">None</span>';
+    document.getElementById('r-missing').innerHTML = rm.missing.map(s => `<span class="chip missing">${esc(s)}</span>`).join('') || '<span style="color:var(--text-muted);">None — great match!</span>';
+  } else { rmSec.style.display = 'none'; }
+
+  document.getElementById('btn-import').style.display = 'block';
+
+  document.getElementById('r-repos-list').innerHTML = d.top_repos.map(r => `
+    <div class="repo-card">
+      <div class="repo-header">
+        <div class="repo-name"><a href="${esc(r.url)}" target="_blank">📁 ${esc(r.name)}</a></div>
+        <div class="repo-stars">⭐ ${r.stars} &nbsp; 🍴 ${r.forks}</div>
+      </div>
+      <div class="repo-desc">${esc(r.description)}</div>
+      ${r.topics && r.topics.length ? `<div class="repo-topics">${r.topics.map(t => `<span class="repo-topic">${esc(t)}</span>`).join('')}</div>` : ''}
+      <div class="repo-lang">${r.language !== 'N/A' ? '🔵 ' + esc(r.language) : ''}</div>
+    </div>`).join('') || '<p style="color:var(--text-muted);">No public repositories found.</p>';
+
+  if (d.ai_feedback) {
+    document.getElementById('feedback-panel').style.display = 'block';
+    // Animate score counter
+    let val = 0;
+    const target = d.ai_feedback.overall_score;
+    const interval = setInterval(() => {
+      val += Math.ceil((target - val) / 5) || 1;
+      if (val >= target) { val = target; clearInterval(interval); }
+      document.getElementById('ai-overall-score').textContent = val;
+    }, 30);
+    
+    document.getElementById('ai-highlights').innerHTML = d.ai_feedback.highlights.map(h => `<li>${esc(h)}</li>`).join('') || '<li style="color: var(--text-muted)">No major highlights found.</li>';
+    
+    document.getElementById('ai-actionable-list').innerHTML = d.ai_feedback.actionable.map(fb => {
+      const icon = fb.type === 'success' ? '✅' : fb.type === 'warning' ? '💡' : '⚠️';
+      return `<div class="feedback-box ${fb.type}"><span class="feedback-icon">${icon}</span><span class="fb-text">${esc(fb.msg)}</span></div>`;
+    }).join('');
+  } else {
+    document.getElementById('feedback-panel').style.display = 'none';
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function importSkills() {
+  if (!_extractedSkills.length) return;
+  const btn = document.getElementById('btn-import');
+  btn.textContent = '✅ Skills Noted!';
+  btn.style.background = 'rgba(16,185,129,0.2)';
+  setTimeout(() => { btn.textContent = '⬇️ Import Skills to Profile'; btn.style.background = ''; }, 3000);
+}
+
+function showError(msg) {
+  const b = document.getElementById('error-box');
+  b.textContent = '⚠️ ' + msg; b.classList.add('show');
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+document.getElementById('gh-username').addEventListener('keydown', e => { if (e.key === 'Enter') analyzeGitHub(); });
+</script>
+{% endblock %}
