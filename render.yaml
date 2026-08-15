@@ -2,15 +2,11 @@ services:
   # The Web Service (Django ASGI/Channels via Daphne) - 100% Free Forever Tier
   - type: web
     name: recruiter-pro-web
-    env: python
+    env: docker
     plan: free
-    buildCommand: "./build.sh"
-    startCommand: "daphne recruitment.asgi:application --port $PORT --bind 0.0.0.0"
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: PYTHON_VERSION
-        value: 3.10.12
       - key: DEBUG
         value: "False"
       - key: AI_PROVIDER
