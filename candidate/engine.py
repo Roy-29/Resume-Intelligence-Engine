@@ -35,12 +35,25 @@ MAX_PAGES = 20          # Prevent DoS from 500-page books
 MAX_FILE_SIZE_MB = 10   # Reject files larger than 10 MB
 MIN_PDF_TEXT_CHARS = 50 # Below this, attempt OCR fallback
 
-# ── Optional: try loading spaCy ──────────────────────────────
-try:
-    import spacy
-    nlp = spacy.load('en_core_web_sm')
-except Exception:
-    nlp = None
+# ── Optional: lazy-load spaCy without startup penalty ──────────
+_nlp_attempted = False
+_nlp_model = None
+
+def _get_nlp():
+    """Lazily load spaCy model on-demand only if en_core_web_sm is actually installed."""
+    global _nlp_attempted, _nlp_model
+    if not _nlp_attempted:
+        _nlp_attempted = True
+        try:
+            import importlib.util
+            if importlib.util.find_spec('en_core_web_sm') is not None:
+                import spacy
+                _nlp_model = spacy.load('en_core_web_sm')
+            else:
+                _nlp_model = None
+        except Exception:
+            _nlp_model = None
+    return _nlp_model
 
 # ── Optional: scikit-learn for TF-IDF ────────────────────────
 try:
@@ -59,7 +72,7 @@ def extract_text(file_path: str) -> str:
     path_lower = file_path.lower()
     if path_lower.endswith('.pdf'):
         text = _extract_pdf(file_path)
-        # Fix 3: OCR fallback — if pdfplumber got almost nothing, try OCR
+        # Fix 3: OCR fallback — if extraction got almost nothing, try OCR
         if len(text.strip()) < MIN_PDF_TEXT_CHARS:
             logger.info(f"PDF text extraction returned <{MIN_PDF_TEXT_CHARS} chars, attempting OCR fallback.")
             ocr_text = _ocr_fallback(file_path)
@@ -72,16 +85,41 @@ def extract_text(file_path: str) -> str:
 
 
 def _extract_pdf(path: str) -> str:
-    """Extract text from PDF with a MAX_PAGES safety limit."""
-    text_parts = []
-    with pdfplumber.open(path) as pdf:
-        for i, page in enumerate(pdf.pages):
+    """Extract text from PDF using high-speed C++ pdfium, falling back to pdfplumber."""
+    # 1. Ultra-fast Chromium PDFium engine
+    try:
+        import pypdfium2 as pdfium
+        doc = pdfium.PdfDocument(path)
+        text_parts = []
+        for i, page in enumerate(doc):
             if i >= MAX_PAGES:
-                logger.warning(f"PDF has {len(pdf.pages)} pages; stopped at {MAX_PAGES} to prevent overload.")
+                logger.warning(f"PDF has {len(doc)} pages; stopped at {MAX_PAGES} to prevent overload.")
                 break
-            t = page.extract_text()
+            textpage = page.get_textpage()
+            t = textpage.get_text_range()
             if t:
                 text_parts.append(t)
+        doc.close()
+        full_text = '\n'.join(text_parts).strip()
+        if full_text:
+            return full_text
+    except Exception as e:
+        logger.debug(f"pypdfium2 extraction failed ({e}), falling back to pdfplumber.")
+
+    # 2. Fallback to pdfplumber
+    text_parts = []
+    try:
+        with pdfplumber.open(path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                if i >= MAX_PAGES:
+                    logger.warning(f"PDF has {len(pdf.pages)} pages; stopped at {MAX_PAGES} to prevent overload.")
+                    break
+                t = page.extract_text()
+                if t:
+                    text_parts.append(t)
+    except Exception as e:
+        logger.warning(f"pdfplumber extraction failed: {e}")
+
     return '\n'.join(text_parts)
 
 
@@ -138,13 +176,17 @@ def extract_entities(text: str) -> dict:
         if 7 <= len(digits) <= 15:
             entities['phone'] = raw
 
-    # Name via spaCy NER
+    # Name via spaCy NER (lazily loaded)
+    nlp = _get_nlp()
     if nlp:
-        doc = nlp(text[:3000])  # first ~3000 chars
-        for ent in doc.ents:
-            if ent.label_ == 'PERSON':
-                entities['name'] = ent.text.strip()
-                break
+        try:
+            doc = nlp(text[:3000])  # first ~3000 chars
+            for ent in doc.ents:
+                if ent.label_ == 'PERSON':
+                    entities['name'] = ent.text.strip()
+                    break
+        except Exception:
+            pass
 
     # Fallback: first non-empty line as name
     if not entities['name']:
@@ -158,23 +200,22 @@ def extract_entities(text: str) -> dict:
 
 
 # ═══════════════════════════════════════════════
-#  3. SKILL EXTRACTION
+#  3. SKILL EXTRACTION (High-Throughput Precompiled)
 # ═══════════════════════════════════════════════
+_TECH_PATTERNS = [
+    (skill.title(), re.compile(r'(?<![a-zA-Z])' + re.escape(skill) + r'(?![a-zA-Z])', re.IGNORECASE))
+    for skill in sorted(TECHNICAL_SKILLS, key=len, reverse=True)
+]
+_SOFT_PATTERNS = [
+    (skill.title(), re.compile(r'(?<![a-zA-Z])' + re.escape(skill) + r'(?![a-zA-Z])', re.IGNORECASE))
+    for skill in sorted(SOFT_SKILLS, key=len, reverse=True)
+]
+
+
 def extract_skills(text: str) -> dict:
     """Return dict with 'technical', 'soft', and 'all' skill lists."""
-    text_lower = text.lower()
-    found_tech = []
-    found_soft = []
-
-    for skill in TECHNICAL_SKILLS:
-        pattern = r'(?<![a-zA-Z])' + re.escape(skill) + r'(?![a-zA-Z])'
-        if re.search(pattern, text_lower):
-            found_tech.append(skill.title())
-
-    for skill in SOFT_SKILLS:
-        pattern = r'(?<![a-zA-Z])' + re.escape(skill) + r'(?![a-zA-Z])'
-        if re.search(pattern, text_lower):
-            found_soft.append(skill.title())
+    found_tech = [title for title, pat in _TECH_PATTERNS if pat.search(text)]
+    found_soft = [title for title, pat in _SOFT_PATTERNS if pat.search(text)]
 
     return {
         'technical': sorted(set(found_tech)),
@@ -537,17 +578,20 @@ _NEGATION_PATTERNS = [
     r"(?:not\s+familiar|unfamiliar|not\s+proficient|no\s+hands[\-\s]on)\s+(?:in|with)\s+",
     r"(?:haven'?t|have\s+not)\s+(?:used|worked|learned|studied)\s+",
 ]
+_COMPILED_NEGATION = [re.compile(p, re.IGNORECASE) for p in _NEGATION_PATTERNS]
 
 def _strip_negated_skills(text: str, skills_list: list) -> list:
     """
     Remove skills that appear in a negated context.
     E.g., 'I do not have experience in Python' → remove 'Python'.
     """
+    if not skills_list:
+        return []
     text_lower = text.lower()
     negated_skills = set()
 
-    for pattern in _NEGATION_PATTERNS:
-        for match in re.finditer(pattern, text_lower):
+    for pattern in _COMPILED_NEGATION:
+        for match in pattern.finditer(text_lower):
             # Grab the next ~60 chars after the negation phrase
             after = text_lower[match.end():match.end() + 60]
             for skill in skills_list:

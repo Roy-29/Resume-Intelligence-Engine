@@ -7,10 +7,9 @@
     <meta name="description" content="AI-Powered Resume Analyzer — Get intelligent insights, scores, and improvement suggestions for your resume.">
     <title>{% block title %}AI Resume Analyzer{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'candidate/img/favicon.png' %}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'candidate/css/style.css' %}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     {% if user.is_authenticated %}
     <style>
         body {
@@ -106,7 +105,7 @@
         </a>
         <div style="flex-grow: 1;"></div>
         
-        {% if user.profile.is_recruiter %}
+        {% if request.session.user_role == 'recruiter' %}
         <a href="{% url 'recruiter:ats_dashboard' %}" class="auth-sidebar-item" style="color: var(--secondary);">
             <span>🎯</span> Recruiter Portal
         </a>
@@ -152,6 +151,8 @@
     </footer>
     {% endif %}
 
+    <!-- Non-blocking Chart.js loaded before extra scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

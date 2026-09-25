@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.views.decorators.http import require_POST, require_GET
+from django.db import transaction
 
 from .models import CandidateAnalysis, JobRole, UserProfile
 from .forms import UserSignUpForm
@@ -29,13 +30,17 @@ def candidate_required(view_func):
     def _wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('candidate:login')
-        try:
-            if not request.user.profile.is_candidate:
-                messages.error(request, '🚫 This area is for candidates only. Please log in as a candidate.')
-                return redirect('recruiter:ats_dashboard')
-        except UserProfile.DoesNotExist:
-            # No profile = treat as candidate (allows legacy accounts)
-            pass
+        role = request.session.get('user_role')
+        if not role:
+            try:
+                role = request.user.profile.role
+                request.session['user_role'] = role
+            except Exception:
+                role = 'candidate'
+                request.session['user_role'] = role
+        if role != 'candidate':
+            messages.error(request, '🚫 This area is for candidates only. Please log in as a candidate.')
+            return redirect('recruiter:ats_dashboard')
         return view_func(request, *args, **kwargs)
     return _wrapped
 
@@ -303,14 +308,15 @@ def user_signup(request):
     if request.method == 'POST':
         form = UserSignUpForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password'])
-            user.save()
-            # Set role to candidate
-            from .models import UserProfile
-            profile, _ = UserProfile.objects.get_or_create(user=user)
-            profile.role = 'candidate'
-            profile.save()
+            with transaction.atomic():
+                user = form.save(commit=False)
+                user.set_password(form.cleaned_data['password'])
+                user.save()
+                # Set role to candidate
+                from .models import UserProfile
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile.role = 'candidate'
+                profile.save()
             login(request, user)
             messages.success(request, 'Account created successfully!')
             return redirect('candidate:profile')
@@ -395,10 +401,10 @@ def user_profile(request):
     else:
         form = CandidateProfileForm(instance=cand_profile, initial={'email': user.email})
     
-    analyses = CandidateAnalysis.objects.filter(user=user).order_by('-uploaded_at')
+    analyses = list(CandidateAnalysis.objects.filter(user=user).order_by('-uploaded_at'))
     
     # Global AI Stats
-    total_analyses = analyses.count()
+    total_analyses = len(analyses)
     highest_score = 0
     avg_match = 0
     top_skills_count = {}
@@ -488,7 +494,7 @@ def job_listings(request):
     """Candidate-facing job board to browse active job postings."""
     # Lazy load to avoid circular import if recruiter model is loaded first
     from recruiter.models import JobPosting
-    jobs = JobPosting.objects.filter(is_active=True).order_by('-created_at')
+    jobs = JobPosting.objects.select_related('role').filter(is_active=True).order_by('-created_at')
     return render(request, 'candidate/jobs_list.html', {'jobs': jobs})
 
 

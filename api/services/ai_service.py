@@ -93,28 +93,33 @@ def _call_huggingface_with_retry(prompt: str) -> str:
 
 
 def _call_gemini_with_retry(prompt: str) -> str:
-    """Call Gemini API with retry logic."""
+    """Call Gemini API with retry logic and model fallback."""
     if not genai_client:
         raise ValueError("Gemini API key is not configured. Set GEMINI_API_KEY in .env")
     from google.genai import types
     last_exception = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = genai_client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
+
+    # Try ultra-fast gemini-2.5-flash first, fallback to gemini-1.5-flash
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    for model_name in models_to_try:
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = genai_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
                 )
-            )
-            return _extract_json_from_text(response.text)
-        except Exception as e:
-            last_exception = e
-            if '429' in str(e) or '503' in str(e) or '500' in str(e):
-                delay = BASE_DELAY * (2 ** attempt)
-                time.sleep(delay)
-            else:
-                raise
+                return _extract_json_from_text(response.text)
+            except Exception as e:
+                last_exception = e
+                if '429' in str(e) or '503' in str(e) or '500' in str(e):
+                    delay = BASE_DELAY * (2 ** attempt)
+                    time.sleep(delay)
+                else:
+                    break  # Try next model if non-transient error
+
     if last_exception:
         raise last_exception
     raise Exception("Unknown error during Gemini API call")
@@ -122,7 +127,14 @@ def _call_gemini_with_retry(prompt: str) -> str:
 
 def _generate_ai_response(prompt: str) -> str:
     """Routes request to primary provider with fallback support."""
-    if AI_PROVIDER == 'huggingface':
+    # If Gemini is configured, prefer it for 10x lower latency (1s vs 15s)
+    if genai_client and AI_PROVIDER != 'huggingface':
+        try:
+            return _call_gemini_with_retry(prompt)
+        except Exception as e:
+            logger.warning(f"Gemini provider failed: {e}. Trying Hugging Face fallback...")
+            return _call_huggingface_with_retry(prompt)
+    else:
         try:
             return _call_huggingface_with_retry(prompt)
         except Exception as e:
@@ -130,14 +142,6 @@ def _generate_ai_response(prompt: str) -> str:
             if genai_client:
                 return _call_gemini_with_retry(prompt)
             raise
-    else:
-        try:
-            if genai_client:
-                return _call_gemini_with_retry(prompt)
-            return _call_huggingface_with_retry(prompt)
-        except Exception as e:
-            logger.warning(f"Gemini provider failed: {e}. Trying Hugging Face fallback...")
-            return _call_huggingface_with_retry(prompt)
 
 
 ACTION_VERBS = [

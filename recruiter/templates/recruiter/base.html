@@ -6,12 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Recruiter Portal{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'candidate/img/favicon.png' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/2.0.2/css/dataTables.dataTables.min.css" />
-    <script src="https://cdn.datatables.net/2.0.2/js/dataTables.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    {% load static %}
     <link rel="stylesheet" href="{% static 'candidate/css/style.css' %}">
     <style>
         body {
@@ -131,12 +129,18 @@
         </div>
     </main>
 
+    <!-- Fast non-blocking vendor scripts at bottom -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.2/js/dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function() {
-            $('.dt-table').DataTable({
-                pageLength: 25,
-                language: { search: "", searchPlaceholder: "Search candidates..." }
-            });
+            if ($('.dt-table').length) {
+                $('.dt-table').DataTable({
+                    pageLength: 25,
+                    language: { search: "", searchPlaceholder: "Search candidates..." }
+                });
+            }
         });
     </script>
 </body>

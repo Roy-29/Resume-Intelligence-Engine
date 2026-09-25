@@ -6,6 +6,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login, logout as auth_logout
 from django.contrib import messages
 from django.views.decorators.http import require_POST
+from django.db import transaction
 from django.db.models import Count, Avg
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -28,13 +29,16 @@ def recruiter_required(view_func):
     def _wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('recruiter:login')
-        try:
-            if not request.user.profile.is_recruiter:
-                messages.error(request, '🚫 Access denied. This area is for recruiters only.')
-                return redirect('candidate:profile')
-        except UserProfile.DoesNotExist:
-            messages.error(request, '🚫 Access denied. Please sign up as a recruiter.')
-            return redirect('recruiter:signup')
+        role = request.session.get('user_role')
+        if not role:
+            try:
+                role = request.user.profile.role
+                request.session['user_role'] = role
+            except Exception:
+                role = None
+        if role != 'recruiter':
+            messages.error(request, '🚫 Access denied. This area is for recruiters only.')
+            return redirect('candidate:profile')
         return view_func(request, *args, **kwargs)
     return _wrapped
 
@@ -46,13 +50,14 @@ def recruiter_signup(request):
     if request.method == 'POST':
         form = UserSignUpForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password'])
-            user.save()
-            # Set role to recruiter
-            profile, _ = UserProfile.objects.get_or_create(user=user)
-            profile.role = 'recruiter'
-            profile.save()
+            with transaction.atomic():
+                user = form.save(commit=False)
+                user.set_password(form.cleaned_data['password'])
+                user.save()
+                # Set role to recruiter
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile.role = 'recruiter'
+                profile.save()
             login(request, user)
             messages.success(request, '🎉 Recruiter account created successfully!')
             return redirect('recruiter:ats_dashboard')
@@ -121,9 +126,9 @@ def recruiter_dashboard(request):
     """
     Main ATS view. Shows active jobs, recent applications, and allows filtering.
     """
-    jobs = JobPosting.objects.filter(is_active=True).annotate(app_count=Count('applications')).order_by('-created_at')
-    inactive_jobs = JobPosting.objects.filter(is_active=False).annotate(app_count=Count('applications')).order_by('-created_at')
-    recent_apps = JobApplication.objects.select_related('candidate_analysis', 'job_posting').order_by('-applied_at')[:20]
+    jobs = JobPosting.objects.filter(is_active=True).select_related('role').annotate(app_count=Count('applications')).order_by('-created_at')
+    inactive_jobs = JobPosting.objects.filter(is_active=False).select_related('role').annotate(app_count=Count('applications')).order_by('-created_at')
+    recent_apps = JobApplication.objects.select_related('candidate_analysis', 'job_posting__role').order_by('-applied_at')[:20]
 
     # Quick stats
     total_applications = JobApplication.objects.count()

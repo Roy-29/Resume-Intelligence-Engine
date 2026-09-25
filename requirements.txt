@@ -25,3 +25,7 @@ psycopg2-binary>=2.9
 requests>=2.31.0
 whitenoise>=6.5.0
 dj-database-url>=2.1.0
+django-db-connection-pool==1.2.6
+psycopg-binary==3.3.6
+sqlparams==6.2.0
+SQLAlchemy==2.1.0

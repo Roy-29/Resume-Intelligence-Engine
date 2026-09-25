@@ -12,11 +12,28 @@ logger = logging.getLogger(__name__)
 TRAINED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'trained')
 
 
-def load_best_model():
+_CACHED_BUNDLE = None
+_NO_MODEL_FOUND = False
+
+
+def clear_model_cache():
+    """Clear cached model bundle in memory (call after re-training models)."""
+    global _CACHED_BUNDLE, _NO_MODEL_FOUND
+    _CACHED_BUNDLE = None
+    _NO_MODEL_FOUND = False
+
+
+def load_best_model(force_reload: bool = False):
     """
-    Load the best model from disk based on DB records.
+    Load the best model with in-memory caching.
     Returns: (model, vectorizer, label_encoder, model_name) or raises error.
     """
+    global _CACHED_BUNDLE, _NO_MODEL_FOUND
+    if _CACHED_BUNDLE is not None and not force_reload:
+        return _CACHED_BUNDLE
+    if _NO_MODEL_FOUND and not force_reload:
+        raise FileNotFoundError("No best model found. Train models first.")
+
     import django
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'recruitment.settings')
     
@@ -24,6 +41,7 @@ def load_best_model():
     
     best = ModelTrainingReport.objects.filter(is_best=True).first()
     if not best:
+        _NO_MODEL_FOUND = True
         raise FileNotFoundError("No best model found. Train models first.")
 
     model = joblib.load(best.model_file_path)
@@ -34,7 +52,8 @@ def load_best_model():
     le_path = os.path.join(TRAINED_DIR, 'label_encoder.joblib')
     label_encoder = joblib.load(le_path) if os.path.exists(le_path) else None
 
-    return model, vectorizer, label_encoder, best.model_name
+    _CACHED_BUNDLE = (model, vectorizer, label_encoder, best.model_name)
+    return _CACHED_BUNDLE
 
 
 def predict_resume(resume_text: str):
